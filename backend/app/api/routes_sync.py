@@ -26,16 +26,11 @@ def sync(
     applied: list[SyncChange] = []
     for item in result["applied"]:
         applied.append(SyncChange(
-            entity="progress",
-            local_key=f"{item['project_id']}:{item['section_key']}",
-            payload={
-                "project_id": item["project_id"],
-                "section_key": item["section_key"],
-                "status": item["status"],
-                "score": item["score"],
-            },
+            entity=item["entity"],
+            local_key=item["local_key"],
+            payload=item["payload"],
             status=item["status"],
-            score=item["score"],
+            score=item.get("score"),
         ))
 
     server_state = [ProgressOut.model_validate(p) for p in result["server_state"]]

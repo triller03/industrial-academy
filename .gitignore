@@ -19,6 +19,9 @@ backend/.env
 # Logs
 *.log
 
+# Generated offline bundles
+backend/offline_packages/
+
 # Node (if the frontend moves to a build tool)
 node_modules/
 

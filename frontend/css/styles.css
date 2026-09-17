@@ -184,7 +184,26 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .fault-result { margin-top: 14px; padding: 14px 16px; border-radius: 8px; }
 .fault-result.pass { background: #0d2b1d; border: 1px solid var(--good); }
 .fault-result.fail { background: #2b1010; border: 1px solid var(--danger); }
+.fault-result.pending { background: #2b230d; border: 1px solid var(--warn); }
 .sync-out { margin-top: 12px; font-size: 13px; color: var(--muted); }
+
+/* Offline status */
+.net-status {
+  display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
+  margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px;
+}
+.net-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.net-status.online .dot { background: var(--good); }
+.net-status.offline { border-color: var(--warn); color: var(--warn); }
+.net-status.offline .dot { background: var(--warn); }
+.net-status .pending { color: var(--warn); font-weight: 700; }
+.pending { color: var(--warn); }
+.sub .ok, .ok { color: var(--good); }
+.sub .warn, .warn { color: var(--warn); }
+
+.section-actions { margin-top: 18px; align-items: center; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn:disabled { opacity: .6; cursor: default; }
 
 @media (max-width: 820px) {
   .split, .mentor-layout { grid-template-columns: 1fr; }

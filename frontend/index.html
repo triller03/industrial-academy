@@ -63,6 +63,7 @@
         <button class="nav-item" data-tab="devices">Devices</button>
       </nav>
       <div class="sidebar-footer">
+        <div id="net-status" class="net-status"></div>
         <div id="user-chip" class="user-chip"></div>
         <button id="logout-btn" class="btn btn-ghost btn-block">Sign out</button>
       </div>
@@ -89,6 +90,10 @@
             <div id="pd-content" class="section-content">
               <h3 id="pd-section-title"></h3>
               <div id="pd-section-body"></div>
+              <div class="row section-actions">
+                <button id="pd-complete" class="btn btn-primary">Mark section complete</button>
+                <span id="pd-complete-note" class="muted"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -150,12 +155,20 @@
         <div id="device-self" class="panel-item"></div>
         <h2>Authorized devices</h2>
         <div id="devices-list" class="panel-list"></div>
-        <button id="sync-now" class="btn btn-primary">Sync from this device</button>
+        <h2>Offline content</h2>
+        <p class="muted">Download a project bundle to study and work with no connection. Attempts made offline are graded when you sync.</p>
+        <div class="row">
+          <button id="download-bundles" class="btn btn-primary">Download / update bundles</button>
+          <button id="sync-now" class="btn btn-ghost">Sync now</button>
+        </div>
+        <div id="bundle-list" class="panel-list"></div>
+        <div id="offline-out" class="sync-out"></div>
         <div id="sync-out" class="sync-out"></div>
       </section>
     </main>
   </div>
 
+  <script src="js/offline.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

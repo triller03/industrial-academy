@@ -13,7 +13,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models import Device, User, UserProgress
+from app.fault import evaluator
+from app.models import Device, FaultScenario, User, UserProgress
 
 SYNC_WINDOW_SECONDS = 5 * 60  # treat updates within this delta as concurrent
 
@@ -140,6 +141,16 @@ class SyncManager:
 
         for change in changes:
             entity = change.get("entity")
+            if entity == "fault_attempt":
+                graded = self._grade_fault_attempt(db, user.id, change.get("payload", {}))
+                if graded is None:
+                    conflicts.append(
+                        {"entity": entity, "reason": "unknown fault_id", "payload": change}
+                    )
+                else:
+                    applied.append(graded)
+                continue
+
             if entity != "progress":
                 conflicts.append({"entity": entity, "reason": f"unsupported entity type: {entity}", "payload": change})
                 continue
@@ -168,10 +179,15 @@ class SyncManager:
                 applied.append(
                     {
                         "entity": "progress",
-                        "project_id": project_id,
-                        "section_key": section_key,
+                        "local_key": f"{project_id}:{section_key}",
                         "status": record.status,
                         "score": record.score,
+                        "payload": {
+                            "project_id": project_id,
+                            "section_key": section_key,
+                            "status": record.status,
+                            "score": record.score,
+                        },
                     }
                 )
             else:
@@ -194,6 +210,70 @@ class SyncManager:
             "applied": applied,
             "conflicts": conflicts,
             "server_state": server_state,
+        }
+
+    def _grade_fault_attempt(self, db: Session, user_id: int, payload: dict) -> dict | None:
+        """Grade a fault attempt that was queued while offline and fold it into progress."""
+        fault_id = payload.get("fault_id")
+        scenario = db.query(FaultScenario).filter(FaultScenario.id == fault_id).first()
+        if scenario is None:
+            return None
+
+        performed = [
+            c.get("check_id") for c in (payload.get("checks") or []) if c.get("performed")
+        ]
+        result = evaluator.evaluate(
+            expected_checks=scenario.expected_checks,
+            performed_checks=performed,
+            correct_diagnosis_keys=scenario.correct_diagnosis_keys,
+            diagnosis_key=payload.get("diagnosis_key"),
+            diagnosis_text=payload.get("diagnosis"),
+            common_misdiagnoses=scenario.common_misdiagnoses,
+        )
+
+        section_key = payload.get("section_key") or "fault_injection"
+        status = "completed" if result.correct else "in_progress"
+        progress_payload = {
+            "status": status,
+            "score": round(result.score * 100.0, 2),
+            "time_spent_seconds": int(payload.get("time_spent_seconds", 0)),
+            "attempts": 1,
+            "updated_at": payload.get("updated_at"),
+        }
+
+        server_row = (
+            db.query(UserProgress)
+            .filter(
+                UserProgress.user_id == user_id,
+                UserProgress.project_id == scenario.project_id,
+                UserProgress.section_key == section_key,
+            )
+            .first()
+        )
+        local_wins, merge = self.conflict.resolve_server_local(server_row, progress_payload)
+        if local_wins:
+            self._upsert_progress(
+                db, user_id, scenario.project_id, section_key, progress_payload, merge
+            )
+
+        return {
+            "entity": "fault_attempt",
+            "local_key": f"fault:{fault_id}",
+            "status": status,
+            "score": round(result.score * 100.0, 2),
+            "payload": {
+                "fault_id": fault_id,
+                "project_id": scenario.project_id,
+                "section_key": section_key,
+                "score": round(result.score, 4),
+                "correct": result.correct,
+                "checks_correct": result.checks_correct,
+                "checks_total": result.checks_total,
+                "feedback": result.feedback,
+                "correct_diagnosis": scenario.correct_diagnosis,
+                "recommended_step": result.recommended_step,
+                "progress_applied": local_wins,
+            },
         }
 
     def _upsert_progress(self, db: Session, user_id: int, project_id: int, section_key: str,

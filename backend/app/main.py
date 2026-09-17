@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from app.api import (
     auth_router,
@@ -11,12 +12,14 @@ from app.api import (
     devices_router,
     fault_router,
     mentor_router,
+    offline_router,
     progress_router,
     projects_router,
     sync_router,
 )
 from app.config import get_settings
 from app.database import Base, engine
+from app.offline import ensure_bundles
 from app.seeder import seed_if_empty
 
 settings = get_settings()
@@ -30,6 +33,8 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     if settings.seed_on_startup:
         seed_if_empty()
+    with Session(engine) as session:
+        ensure_bundles(session)
     yield
 
 
@@ -56,6 +61,7 @@ for router in (
     devices_router,
     sync_router,
     credentials_router,
+    offline_router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
 

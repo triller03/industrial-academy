@@ -109,12 +109,18 @@ def project_progress(
             .first()
         )
         if progress is None:
-            progress = UserProgress(
-                user_id=current.id,
-                project_id=project_id,
-                section_key=s.key,
-                status="not_started",
+            sections.append(
+                ProgressOut(
+                    user_id=current.id,
+                    project_id=project_id,
+                    section_key=s.key,
+                    status="not_started",
+                    score=0.0,
+                    attempts=0,
+                    time_spent_seconds=0,
+                )
             )
+            continue
         sections.append(ProgressOut.model_validate(progress))
 
     completed = sum(1 for s in sections if s.status == "completed")

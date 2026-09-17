@@ -24,9 +24,14 @@ The flagship project is a **500 m³/h municipal water treatment plant** — 17 l
 - **Fault injection & graded diagnosis** — decision trees drive 8 realistic faults. A learner selects
   the checks they would run and submits a diagnosis; scoring is 60% correct checks / 40% diagnosis,
   with feedback on missed checks, unnecessary checks, and known misdiagnoses.
-- **Offline-first sync** — the client works disconnected, then syncs. Server-authoritative conflict
-  resolution (completed beats in-progress, higher score, then newest), device binding limited to
-  **3 devices** per user, and a 90-day offline sync window.
+- **Offline-first sync** — the client caches project bundles in IndexedDB, works fully disconnected,
+  then syncs. Server-authoritative conflict resolution (completed beats in-progress, higher score,
+  then newest), device binding limited to **3 devices** per user, and a 90-day offline sync window.
+- **Offline content bundles** — content-addressed JSON bundles (sections, faults, mentor pack) are
+  generated on startup and downloaded per project. `known_version` returns `204` when the client is
+  already current. Bundles never contain grading answers.
+- **Service worker** — caches the app shell so the UI loads with no connection; API responses are
+  always fetched from the network (never cached).
 - **Credentials** — a certificate and a portfolio entry are issued automatically when all 17 sections
   of a project are completed. Certificates carry a public verification token.
 - **Content generator** — templates for water, mining, and manufacturing industries with difficulty
@@ -47,18 +52,23 @@ industrial-academy/
 │   │   ├── fault/        # decision trees + diagnosis evaluator
 │   │   ├── mentor/       # Socratic mentor engine (safety / guided / socratic)
 │   │   ├── models/       # 13 SQLAlchemy tables
+│   │   ├── offline/      # content-addressed bundle builder
 │   │   ├── schemas/      # Pydantic request/response models
 │   │   ├── sync/         # offline sync manager + device binding
 │   │   ├── config.py
 │   │   ├── database.py
 │   │   ├── seeder.py     # seed data: water treatment plant, 17 sections, 8 faults
 │   │   └── main.py       # FastAPI app, routers, static frontend mount
+│   ├── tests/            # integration + static checks (see Testing)
 │   ├── requirements.txt
 │   └── run.py
 └── frontend/
     ├── index.html        # auth screen + app shell (6 tabs)
+    ├── sw.js             # service worker (app-shell cache only)
     ├── css/styles.css
-    └── js/app.js
+    └── js/
+        ├── app.js        # SPA: routing, dashboard, mentor, faults, devices
+        └── offline.js    # IndexedDB bundles, offline queue, local progress
 ```
 
 **Stack:** FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2 · SQLite · JWT (python-jose) ·
@@ -124,6 +134,7 @@ All endpoints are prefixed with `/api`.
 | Progress | `GET /progress` · `POST /progress` |
 | Devices | `POST /devices/authorize` · `GET /devices` · `POST /devices/revoke` · `POST /devices/{id}/touch` |
 | Sync | `POST /sync` |
+| Offline | `GET /offline/manifest` · `GET /projects/{id}/offline-bundle` · `POST /offline/rebuild` (admin) |
 | Credentials | `GET /credentials/certificates` · `GET /credentials/portfolio` · `GET /credentials/certificates/verify/{token}` |
 | Health | `GET /health` |
 
@@ -154,6 +165,29 @@ the server:
 2. Resolves conflicts server-authoritatively — **completed > in-progress**, then **higher score**,
    then **newest timestamp**. Losing changes are returned in `conflicts`.
 3. Applies accepted changes and returns the authoritative `server_state`.
+
+Offline learning flow:
+
+1. The client authorizes its device and calls `GET /offline/manifest`.
+2. It downloads each project bundle (skipped with `204` when `known_version` matches) and stores it in
+   IndexedDB.
+3. While offline it records section completions and fault attempts locally; the mentor falls back to a
+   local rule-based pack.
+4. `POST /sync` flushes the queue, including `fault_attempt` changes which are graded server-side and
+   folded into `fault_injection` progress.
+
+---
+
+## Testing
+
+With the server running (`python run.py`), from `backend/`:
+
+```bash
+.\.venv\Scripts\python.exe tests\smoke_test.py        # 25 end-to-end API checks
+.\.venv\Scripts\python.exe tests\refresh_test.py      # refresh-token rotation + reuse rejection
+.\.venv\Scripts\python.exe tests\offline_test.py      # 13 offline bundle + sync checks
+.\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
+```
 
 ---
 

@@ -12,7 +12,7 @@ from app.core.security import (
 )
 from app.database import get_db
 from app.models import User
-from app.schemas import TokenOut, UserOut, UserRegister
+from app.schemas import RefreshIn, TokenOut, UserOut, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,8 +52,8 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 
 
 @router.post("/refresh", response_model=TokenOut)
-def refresh(refresh_token: str, db: Session = Depends(get_db)):
-    record = rotate_refresh_token(db, refresh_token)
+def refresh(body: RefreshIn, db: Session = Depends(get_db)):
+    record = rotate_refresh_token(db, body.refresh_token)
     if record is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired refresh token")
     return TokenOut(

@@ -17,7 +17,7 @@ class UserRegister(BaseModel):
 
 class UserOut(ORMModel):
     id: int
-    email: EmailStr
+    email: str
     full_name: str
     is_active: bool
     is_admin: bool
@@ -29,6 +29,10 @@ class TokenOut(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str
 
 
 # ---------- Devices ----------
@@ -163,9 +167,9 @@ class ProgressOut(ORMModel):
     score: float
     attempts: int
     time_spent_seconds: int
-    started_at: datetime
-    updated_at: datetime
-    completed_at: datetime | None
+    started_at: datetime | None = None
+    updated_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class ProjectProgressOut(BaseModel):
@@ -197,6 +201,31 @@ class SyncResult(BaseModel):
     applied: list[SyncChange]
     conflicts: list[dict]
     server_state: list[ProgressOut]
+
+
+class OfflineManifestItem(BaseModel):
+    project_id: int
+    slug: str
+    title: str
+    industry: str
+    difficulty: str
+    version: str
+    checksum: str
+    size_bytes: int
+    section_count: int
+    fault_count: int
+    generated_at: datetime
+
+
+class FaultAttemptResult(BaseModel):
+    fault_id: int
+    score: float
+    correct: bool
+    checks_correct: int
+    checks_total: int
+    feedback: list[str]
+    correct_diagnosis: str
+    recommended_step: str | None = None
 
 
 # ---------- Certificates / Portfolio ----------

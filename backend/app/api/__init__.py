@@ -1,0 +1,19 @@
+from app.api.routes_auth import router as auth_router
+from app.api.routes_credentials import router as credentials_router
+from app.api.routes_devices import router as devices_router
+from app.api.routes_fault import router as fault_router
+from app.api.routes_mentor import router as mentor_router
+from app.api.routes_progress import router as progress_router
+from app.api.routes_projects import router as projects_router
+from app.api.routes_sync import router as sync_router
+
+__all__ = [
+    "auth_router",
+    "credentials_router",
+    "devices_router",
+    "fault_router",
+    "mentor_router",
+    "progress_router",
+    "projects_router",
+    "sync_router",
+]

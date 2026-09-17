@@ -1,0 +1,31 @@
+from app.models.models import (
+    ActivityLog,
+    AIConversation,
+    Certificate,
+    Device,
+    FaultScenario,
+    Lesson,
+    OfflineContent,
+    PortfolioEntry,
+    Project,
+    ProjectSection,
+    RefreshToken,
+    User,
+    UserProgress,
+)
+
+__all__ = [
+    "ActivityLog",
+    "AIConversation",
+    "Certificate",
+    "Device",
+    "FaultScenario",
+    "Lesson",
+    "OfflineContent",
+    "PortfolioEntry",
+    "Project",
+    "ProjectSection",
+    "RefreshToken",
+    "User",
+    "UserProgress",
+]

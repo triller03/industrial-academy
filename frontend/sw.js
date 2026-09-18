@@ -1,7 +1,7 @@
 // AI-Powered Industrial Academy — service worker
 // Caches the app shell so the UI loads with no network. API calls are never cached;
 // content for offline study comes from IndexedDB bundles instead.
-const CACHE = "academy-shell-v2";
+const CACHE = "academy-shell-v3";
 const SHELL = [
   "/",
   "/index.html",

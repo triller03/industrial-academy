@@ -18,8 +18,8 @@ def server_up() -> bool:
 def main() -> int:
     if not server_up():
         print("The API server is not running on http://127.0.0.1:8000.")
-        print("Start it in VS Code with the 'Start API server (hot reload)' task, or run:")
-        print("  cd backend && .\\.venv\\Scripts\\python.exe run.py")
+        print("From Visual Studio 2026 (or your terminal), start it with:")
+        print("  Set-Location backend; .\\.venv\\Scripts\\python.exe run.py")
         return 2
 
     python = sys.executable

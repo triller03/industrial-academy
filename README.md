@@ -100,6 +100,11 @@ pip install -r requirements.txt
 python run.py
 ```
 
+You can also run it from **Visual Studio 2026** (install the *Python development* workload): open the
+repo root as a folder, then run `backend/run.py` (F5 debugging works once the workload is installed),
+or run the API from the integrated terminal: `Set-Location backend` then
+`..\.venv\Scripts\python.exe run.py`.
+
 Open **http://127.0.0.1:8000**.
 
 Demo account (seeded on first startup):
@@ -200,6 +205,12 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\admin_test.py        # 11 admin/rebuild/auth-path checks
 .\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
+```
+
+Or run all suites at once (checks the server is up first):
+
+```bash
+.\.venv\Scripts\python.exe tests\run_all.py
 ```
 
 ---

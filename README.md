@@ -186,6 +186,7 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\smoke_test.py        # 25 end-to-end API checks
 .\.venv\Scripts\python.exe tests\refresh_test.py      # refresh-token rotation + reuse rejection
 .\.venv\Scripts\python.exe tests\offline_test.py      # 13 offline bundle + sync checks
+.\.venv\Scripts\python.exe tests\admin_test.py        # 11 admin/rebuild/auth-path checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
 ```
 

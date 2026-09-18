@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from app.activity import log_activity
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models import FaultScenario, OfflineContent, Project, ProjectSection, User
@@ -117,4 +118,6 @@ def rebuild_bundles(db: Session = Depends(get_db), current: User = Depends(get_c
     if not current.is_admin:
         raise HTTPException(status_code=403, detail="Administrator privileges required")
     written = ensure_bundles(db)
+    log_activity(db, current.id, "offline.rebuild", entity="offline", detail={"written": written})
+    db.commit()
     return {"written": written, "package_dir": str(Path("offline_packages"))}

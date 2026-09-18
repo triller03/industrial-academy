@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.content import INDUSTRY_TEMPLATES
+from app.content.service import persist_generated_project
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models import FaultScenario, Project, ProjectSection, User, UserProgress
+from app.offline import ensure_bundles
 from app.schemas import (
     FaultDetailOut,
     FaultScenarioListItem,
+    GenerateProjectIn,
     ProjectListItem,
     ProjectOut,
     ProjectProgressOut,
@@ -15,6 +19,39 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.post("/generate", status_code=201, response_model=ProjectListItem)
+def generate_project(
+    body: GenerateProjectIn,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    if not current.is_admin:
+        raise HTTPException(status_code=403, detail="Administrator privileges required")
+    if body.industry not in INDUSTRY_TEMPLATES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown industry '{body.industry}'. Choose from: {', '.join(sorted(INDUSTRY_TEMPLATES))}",
+        )
+    project = persist_generated_project(
+        db,
+        industry=body.industry,
+        title=body.title,
+        difficulty=body.difficulty,
+        description=body.description,
+        actor_user_id=current.id,
+    )
+    ensure_bundles(db)
+    return ProjectListItem(
+        id=project.id,
+        slug=project.slug,
+        title=project.title,
+        industry=project.industry,
+        difficulty=project.difficulty,
+        hours=project.hours,
+        description=project.description,
+    )
 
 
 @router.get("", response_model=list[ProjectListItem])

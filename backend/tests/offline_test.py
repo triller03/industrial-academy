@@ -40,15 +40,15 @@ check("demo login", st == 200)
 token = tok["access_token"]
 
 st, projects, _ = call("/projects", token=token)
-pid = projects[0]["id"]
+pid = next((p["id"] for p in projects if p["slug"] == "water-treatment-500"), projects[0]["id"])
 
 fp = "fp_offline_" + uuid.uuid4().hex
 call("/devices/authorize", "POST", body={"device_fingerprint": fp, "device_label": "Offline tester"}, token=token)
 
 # manifest
 st, man, _ = call("/offline/manifest", token=token)
-check("manifest lists bundle", st == 200 and len(man) == 1, f"n={len(man) if isinstance(man,list) else man}")
-item = man[0]
+check("manifest lists bundles", st == 200 and len(man) >= 1, f"n={len(man) if isinstance(man,list) else man}")
+item = next((m for m in man if m["project_id"] == pid), man[0])
 check("manifest has version/checksum/size", bool(item["version"]) and len(item["checksum"]) == 64 and item["size_bytes"] > 0,
       f"v={item['version']} size={item['size_bytes']} sections={item['section_count']} faults={item['fault_count']}")
 check("manifest counts", item["section_count"] == 17 and item["fault_count"] == 8)

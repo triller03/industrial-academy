@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, engine
 from app.fault import evaluator
+from app.fault.palette import palette
 from app.models import FaultScenario, Project, ProjectSection, User
 from app.content import ProjectDefinition, ProjectGenerator
 
@@ -553,13 +554,7 @@ DISTRACTOR_CHECKS = [
 
 def _palette(expected: list[str], distractors: list[str] | None = None, extra: int = 3) -> list[str]:
     """Build the student-facing check palette: expected checks + plausible distractors."""
-    pool = list(expected)
-    for d in (distractors or DISTRACTOR_CHECKS):
-        if d not in pool:
-            pool.append(d)
-        if len(pool) - len(expected) >= extra:
-            break
-    return pool
+    return palette(expected, distractors=distractors, extra=extra)
 
 
 def seed_if_empty() -> None:

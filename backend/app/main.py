@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.api import (
+    activity_router,
     auth_router,
     credentials_router,
     devices_router,
@@ -62,6 +63,7 @@ for router in (
     sync_router,
     credentials_router,
     offline_router,
+    activity_router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
 

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.activity import log_activity
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models import Certificate, PortfolioEntry, Project, ProjectSection, User, UserProgress
@@ -53,7 +54,15 @@ def update_progress(
     db.commit()
     db.refresh(record)
 
-    if record.status == "completed":
+    if body.status == "completed":
+        log_activity(
+            db,
+            current.id,
+            "section.completed",
+            entity=f"project:{record.project_id}:section:{record.section_key}",
+            detail={"score": record.score, "attempts": record.attempts},
+        )
+        db.commit()
         _finalize_completed(current.id, record, db)
     return record
 
@@ -100,4 +109,11 @@ def _finalize_completed(user_id: int, record: UserProgress, db: Session) -> None
         title=project.title,
         summary=f"Completed {project.title} — full 17-section engineering lifecycle.",
     ))
+    log_activity(
+        db,
+        user_id,
+        "credential.issued",
+        entity=f"project:{record.project_id}",
+        detail={"kind": "certificate+portfolio", "project": project.slug},
+    )
     db.commit()

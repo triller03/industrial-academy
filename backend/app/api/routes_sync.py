@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.activity import log_activity
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models import User
@@ -34,6 +35,16 @@ def sync(
         ))
 
     server_state = [ProgressOut.model_validate(p) for p in result["server_state"]]
+
+    if body.changes:
+        log_activity(
+            db,
+            current.id,
+            "sync.apply",
+            entity="sync",
+            detail={"device": body.device_fingerprint[:12], "changes": len(body.changes), "applied": len(applied), "conflicts": len(result["conflicts"])},
+        )
+        db.commit()
 
     return SyncResult(
         applied=applied,

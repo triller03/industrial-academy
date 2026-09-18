@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.activity import log_activity
 from app.core.security import get_current_user
 from app.database import get_db
 from app.fault import evaluator
@@ -29,6 +30,15 @@ def diagnose(
         diagnosis_text=body.diagnosis,
         common_misdiagnoses=scenario.common_misdiagnoses,
     )
+
+    log_activity(
+        db,
+        current.id,
+        "fault.diagnose",
+        entity=f"fault:{scenario.id}",
+        detail={"score": result.score, "correct": result.correct, "checks": f"{result.checks_correct}/{result.checks_total}"},
+    )
+    db.commit()
 
     return FaultDiagnoseOut(
         fault_id=scenario.id,

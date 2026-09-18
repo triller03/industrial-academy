@@ -87,6 +87,23 @@ class ProjectListItem(BaseModel):
     description: str
 
 
+class GenerateProjectIn(BaseModel):
+    industry: str = Field(..., description="One of: water, mining, manufacturing")
+    title: str = Field(min_length=3, max_length=120)
+    difficulty: str = Field(default="intermediate", description="basic, intermediate, advanced, expert")
+    description: str = Field(default="", max_length=2000)
+
+
+# ---------- Activity ----------
+class ActivityOut(ORMModel):
+    id: int
+    user_id: int
+    action: str
+    entity: str | None
+    detail: dict | None
+    created_at: datetime
+
+
 # ---------- Mentor ----------
 class MentorChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=4000)

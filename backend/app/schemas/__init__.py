@@ -1,4 +1,5 @@
 from app.schemas.schemas import (
+    ActivityOut,
     CertificateOut,
     DeviceAuthorizeIn,
     DeviceOut,
@@ -9,6 +10,7 @@ from app.schemas.schemas import (
     FaultDiagnoseOut,
     FaultAttemptResult,
     FaultScenarioListItem,
+    GenerateProjectIn,
     MentorChatIn,
     MentorChatOut,
     OfflineManifestItem,
@@ -29,6 +31,7 @@ from app.schemas.schemas import (
 )
 
 __all__ = [
+    "ActivityOut",
     "CertificateOut",
     "DeviceAuthorizeIn",
     "DeviceOut",
@@ -39,6 +42,7 @@ __all__ = [
     "FaultDiagnoseOut",
     "FaultAttemptResult",
     "FaultScenarioListItem",
+    "GenerateProjectIn",
     "MentorChatIn",
     "MentorChatOut",
     "OfflineManifestItem",

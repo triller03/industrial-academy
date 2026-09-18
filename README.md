@@ -35,7 +35,11 @@ The flagship project is a **500 m³/h municipal water treatment plant** — 17 l
 - **Credentials** — a certificate and a portfolio entry are issued automatically when all 17 sections
   of a project are completed. Certificates carry a public verification token.
 - **Content generator** — templates for water, mining, and manufacturing industries with difficulty
-  tiers, so new projects can be generated rather than hand-authored.
+  tiers, so new projects can be generated rather than hand-authored. Exposed as an admin endpoint:
+  each generated project gets the full 17-section lifecycle plus graded fault scenarios, and is
+  packaged into an offline bundle automatically.
+- **Audit trail** — user actions (section completions, credential issuance, fault attempts, syncs,
+  project generation, bundle rebuilds) are recorded in `activity_logs` and readable via `GET /activity`.
 - **Single-page frontend** — vanilla HTML/CSS/JS served by FastAPI. No build step, works offline.
 
 ---
@@ -46,12 +50,13 @@ The flagship project is a **500 m³/h municipal water treatment plant** — 17 l
 industrial-academy/
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials
-│   │   ├── content/      # project generator (17-section lifecycle, industry templates)
+│   │   ├── activity.py    # audit-trail helper (activity_logs)
+│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity
+│   │   ├── content/      # project generator (17-section lifecycle, industry templates) + admin service
 │   │   ├── core/         # security: password hashing, JWT access/refresh tokens
-│   │   ├── fault/        # decision trees + diagnosis evaluator
+│   │   ├── fault/        # decision trees + diagnosis evaluator + check palette
 │   │   ├── mentor/       # Socratic mentor engine (safety / guided / socratic)
-│   │   ├── models/       # 13 SQLAlchemy tables
+│   │   ├── models/       # 14 SQLAlchemy tables
 │   │   ├── offline/      # content-addressed bundle builder
 │   │   ├── schemas/      # Pydantic request/response models
 │   │   ├── sync/         # offline sync manager + device binding
@@ -128,7 +133,7 @@ All endpoints are prefixed with `/api`.
 | Area | Endpoints |
 | --- | --- |
 | Auth | `POST /auth/register` · `POST /auth/token` · `POST /auth/refresh` · `GET /auth/me` |
-| Projects | `GET /projects` · `GET /projects/{id}` · `GET /projects/{id}/sections/{key}` · `GET /projects/{id}/progress` |
+| Projects | `GET /projects` · `GET /projects/{id}` · `GET /projects/{id}/sections/{key}` · `GET /projects/{id}/progress` · `POST /projects/generate` (admin) |
 | Faults | `GET /projects/{id}/faults` · `GET /projects/{id}/faults/{fault_id}` · `POST /fault/diagnose` |
 | Mentor | `POST /mentor/chat` · `POST /mentor/solution` |
 | Progress | `GET /progress` · `POST /progress` |
@@ -136,6 +141,7 @@ All endpoints are prefixed with `/api`.
 | Sync | `POST /sync` |
 | Offline | `GET /offline/manifest` · `GET /projects/{id}/offline-bundle` · `POST /offline/rebuild` (admin) |
 | Credentials | `GET /credentials/certificates` · `GET /credentials/portfolio` · `GET /credentials/certificates/verify/{token}` |
+| Activity | `GET /activity` (admin sees all users) |
 | Health | `GET /health` |
 
 The fault-detail endpoint deliberately omits the expected checks and correct diagnosis; those are
@@ -187,6 +193,7 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\refresh_test.py      # refresh-token rotation + reuse rejection
 .\.venv\Scripts\python.exe tests\offline_test.py      # 13 offline bundle + sync checks
 .\.venv\Scripts\python.exe tests\admin_test.py        # 11 admin/rebuild/auth-path checks
+.\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
 ```
 

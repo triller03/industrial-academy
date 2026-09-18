@@ -205,6 +205,11 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .btn:disabled { opacity: .6; cursor: default; }
 
+/* Admin */
+.admin-form { display: grid; gap: 4px; max-width: 480px; margin-bottom: 24px; }
+.admin-form select, .admin-form textarea { width: 100%; }
+.admin-form .row { margin-top: 10px; }
+
 @media (max-width: 820px) {
   .split, .mentor-layout { grid-template-columns: 1fr; }
   .sidebar { width: 190px; }

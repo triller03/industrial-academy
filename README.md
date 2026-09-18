@@ -106,8 +106,13 @@ Demo account (seeded on first startup):
 
 ```
 email:    demo@academy.local
-password: demo1234
+password: demo1234        # regular student
+
+email:    admin@academy.local
+password: admin1234       # admin — can generate projects & view the audit trail
 ```
+
+> The seeded accounts are for local development only; remove them before production.
 
 API docs: http://127.0.0.1:8000/docs
 
@@ -191,7 +196,7 @@ With the server running (`python run.py`), from `backend/`:
 ```bash
 .\.venv\Scripts\python.exe tests\smoke_test.py        # 25 end-to-end API checks
 .\.venv\Scripts\python.exe tests\refresh_test.py      # refresh-token rotation + reuse rejection
-.\.venv\Scripts\python.exe tests\offline_test.py      # 13 offline bundle + sync checks
+.\.venv\Scripts\python.exe tests\offline_test.py      # 14 offline bundle + sync checks
 .\.venv\Scripts\python.exe tests\admin_test.py        # 11 admin/rebuild/auth-path checks
 .\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references

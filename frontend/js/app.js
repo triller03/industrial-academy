@@ -160,6 +160,8 @@ async function boot() {
   $("#auth-screen").classList.add("hidden");
   $("#app").classList.remove("hidden");
   $("#user-chip").innerHTML = `<div>${esc(state.user.full_name)}</div><div class="email">${esc(state.user.email)}</div>`;
+  const adminNav = $("#nav-admin");
+  if (adminNav) adminNav.classList.toggle("hidden", !state.user.is_admin);
 
   await loadProjects();
   await authorizeThisDevice();
@@ -236,7 +238,7 @@ function showTab(tab) {
   $all(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + tab).classList.remove("hidden");
   $all(".nav-item").forEach((n) => n.classList.toggle("active", n.dataset.tab === tab));
-  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext };
+  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext, admin: loadAdmin };
   if (loaders[tab]) loaders[tab]();
 }
 
@@ -685,6 +687,57 @@ async function syncNow() {
   renderBundles();
 }
 
+// ---------- admin ----------
+async function loadAdmin() {
+  if (!state.user || !state.user.is_admin) return;
+  loadActivity();
+}
+
+async function loadActivity() {
+  const list = $("#activity-list");
+  if (!list) return;
+  list.innerHTML = "<p class='muted'>Loading…</p>";
+  try {
+    const rows = await api("/activity?limit=100");
+    list.innerHTML = "";
+    if (!rows.length) { list.innerHTML = "<p class='muted'>No activity recorded yet.</p>"; return; }
+    rows.forEach((a) => {
+      const detail = a.detail ? " · " + Object.entries(a.detail).map(([k, v]) => `${k}=${v}`).join(", ") : "";
+      list.appendChild(el("div", "panel-item",
+        `<div class="title">${esc(a.action)} <span class="muted">#${a.user_id}</span></div>
+         <div class="sub">${esc(a.entity || "—")}${esc(detail)} · ${esc(a.created_at.slice(0, 16).replace("T", " "))}</div>`));
+    });
+  } catch (err) {
+    list.innerHTML = "<p class='muted'>Could not load activity: " + esc(err.message) + "</p>";
+  }
+}
+
+async function generateProject() {
+  const out = $("#gen-out");
+  const btn = $("#gen-submit");
+  if (out) out.textContent = "";
+  if (btn) { btn.disabled = true; btn.textContent = "Generating…"; }
+  try {
+    const created = await api("/projects/generate", {
+      method: "POST",
+      body: {
+        industry: $("#gen-industry").value,
+        title: $("#gen-title").value.trim(),
+        difficulty: $("#gen-difficulty").value,
+        description: $("#gen-description").value.trim(),
+      },
+    });
+    if (out) out.textContent = `Published "${created.title}". 17 sections, offline bundle ready.`;
+    $("#gen-title").value = ""; $("#gen-description").value = "";
+    await loadProjects();
+    loadActivity();
+  } catch (err) {
+    if (out) out.textContent = "Failed: " + err.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Generate project"; }
+  }
+}
+
 // ---------- service worker ----------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -719,6 +772,8 @@ $("#fault-submit").onclick = submitDiagnosis;
 $("#sync-now").onclick = syncNow;
 $("#pd-complete").onclick = markSectionComplete;
 $("#download-bundles").onclick = downloadAllBundles;
+$("#gen-form").onsubmit = (e) => { e.preventDefault(); generateProject(); };
+$("#activity-refresh").onclick = loadActivity;
 document.addEventListener("offline-status", () => { if (!$("#view-devices").classList.contains("hidden")) renderBundles(); });
 
 // ---------- go ----------

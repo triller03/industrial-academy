@@ -37,6 +37,12 @@ def check(label, cond, extra=""):
 
 st, tok, _ = call("/auth/token", "POST", form={"username": "demo@academy.local", "password": "demo1234"})
 check("demo login", st == 200)
+
+# Fresh user per run so device binding never hits the 3-device per-user limit.
+email = f"offline_{uuid.uuid4().hex[:8]}@example.com"
+call("/auth/register", "POST", body={"email": email, "full_name": "Offline Tester", "password": "str0ngpass123"})
+st, tok, _ = call("/auth/token", "POST", form={"username": email, "password": "str0ngpass123"})
+check("fresh user login", st == 200)
 token = tok["access_token"]
 
 st, projects, _ = call("/projects", token=token)

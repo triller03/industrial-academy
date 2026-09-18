@@ -581,6 +581,17 @@ def _create_demo_user(db: Session) -> None:
     ))
     db.commit()
 
+    if db.query(User).filter(User.email == "admin@academy.local").first():
+        return
+    db.add(User(
+        email="admin@academy.local",
+        full_name="Academy Administrator",
+        hashed_password=hash_password("admin1234"),
+        institution="Platform",
+        is_admin=True,
+    ))
+    db.commit()
+
 
 def _seed_water_project(db: Session) -> None:
     project = Project(

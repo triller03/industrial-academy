@@ -61,6 +61,7 @@
         <button class="nav-item" data-tab="faultlab">Fault Lab</button>
         <button class="nav-item" data-tab="credentials">Credentials</button>
         <button class="nav-item" data-tab="devices">Devices</button>
+        <button class="nav-item hidden" id="nav-admin" data-tab="admin">Admin</button>
       </nav>
       <div class="sidebar-footer">
         <div id="net-status" class="net-status"></div>
@@ -164,6 +165,40 @@
         <div id="bundle-list" class="panel-list"></div>
         <div id="offline-out" class="sync-out"></div>
         <div id="sync-out" class="sync-out"></div>
+      </section>
+
+      <section id="view-admin" class="view">
+        <h1>Admin</h1>
+        <p class="muted">Generate new projects from industry templates and review learner activity.</p>
+        <h2>Generate a project</h2>
+        <form id="gen-form" class="admin-form">
+          <label>Industry template</label>
+          <select id="gen-industry">
+            <option value="water">Water & Utilities</option>
+            <option value="mining">Mining</option>
+            <option value="manufacturing">Manufacturing</option>
+          </select>
+          <label>Title</label>
+          <input type="text" id="gen-title" required placeholder="e.g. Clearwell Pumping Station" />
+          <label>Difficulty</label>
+          <select id="gen-difficulty">
+            <option value="basic">Basic (15 h)</option>
+            <option value="intermediate" selected>Intermediate (30 h)</option>
+            <option value="advanced">Advanced (50 h)</option>
+            <option value="expert">Expert (80 h)</option>
+          </select>
+          <label>Description</label>
+          <textarea id="gen-description" rows="3" placeholder="What the student will build (optional)"></textarea>
+          <div class="row">
+            <button type="submit" id="gen-submit" class="btn btn-primary">Generate project</button>
+            <span id="gen-out" class="muted"></span>
+          </div>
+        </form>
+        <h2>Audit trail</h2>
+        <div class="row" style="justify-content:flex-end; margin-bottom:8px;">
+          <button id="activity-refresh" class="btn btn-ghost">Refresh</button>
+        </div>
+        <div id="activity-list" class="panel-list"></div>
       </section>
     </main>
   </div>

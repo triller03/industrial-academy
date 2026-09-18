@@ -199,6 +199,18 @@
           <button id="activity-refresh" class="btn btn-ghost">Refresh</button>
         </div>
         <div id="activity-list" class="panel-list"></div>
+        <h2>Live integrations</h2>
+        <p class="muted">Bridge to FACTORY I/O (Modbus TCP on port 502), Siemens S7 (snap7) and WinCC / SCADA (OPC UA).</p>
+        <div id="int-status" class="panel-list"></div>
+        <div class="row">
+          <button id="int-modbus-start" class="btn btn-primary">Start Modbus link</button>
+          <button id="int-modbus-stop" class="btn btn-ghost">Stop Modbus link</button>
+          <button id="int-s7-probe" class="btn btn-ghost">Test S7</button>
+          <button id="int-opcua-probe" class="btn btn-ghost">Test OPC UA</button>
+          <button id="int-snapshot" class="btn btn-ghost">Record snapshot</button>
+        </div>
+        <div id="int-detail" class="panel-list"></div>
+        <div id="int-msg" class="sync-out"></div>
       </section>
     </main>
   </div>

@@ -20,6 +20,24 @@ class Settings(BaseSettings):
 
     seed_on_startup: bool = True
 
+    # Integration layer (FACTORY I/O / TIA Portal / WinCC)
+    integrations_enabled: bool = True
+    simulated_plant: bool = True
+
+    modbus_enabled: bool = True
+    modbus_host: str = "127.0.0.1"
+    modbus_port: int = 502
+
+    s7_enabled: bool = False
+    s7_ip: str = "192.168.0.1"
+    s7_rack: int = 0
+    s7_slot: int = 1
+    s7_db: int = 1
+
+    opcua_enabled: bool = False
+    opcua_url: str = "opc.tcp://127.0.0.1:4840"
+    opcua_nodes: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

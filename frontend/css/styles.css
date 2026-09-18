@@ -200,6 +200,7 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .pending { color: var(--warn); }
 .sub .ok, .ok { color: var(--good); }
 .sub .warn, .warn { color: var(--warn); }
+.sub .bad, .bad { color: var(--danger); }
 
 .section-actions { margin-top: 18px; align-items: center; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -209,6 +210,9 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .admin-form { display: grid; gap: 4px; max-width: 480px; margin-bottom: 24px; }
 .admin-form select, .admin-form textarea { width: 100%; }
 .admin-form .row { margin-top: 10px; }
+.int-table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; font-size: 13px; }
+.int-table th, .int-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+.int-table th { background: var(--panel); font-weight: 600; }
 
 @media (max-width: 820px) {
   .split, .mentor-layout { grid-template-columns: 1fr; }

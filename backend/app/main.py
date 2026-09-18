@@ -12,6 +12,7 @@ from app.api import (
     credentials_router,
     devices_router,
     fault_router,
+    integrations_router,
     mentor_router,
     offline_router,
     progress_router,
@@ -20,6 +21,7 @@ from app.api import (
 )
 from app.config import get_settings
 from app.database import Base, engine
+from app.integrations.manager import IntegrationManager
 from app.offline import ensure_bundles
 from app.seeder import seed_if_empty
 
@@ -36,7 +38,11 @@ async def lifespan(app: FastAPI):
         seed_if_empty()
     with Session(engine) as session:
         ensure_bundles(session)
+    manager = IntegrationManager(settings)
+    manager.start()
+    app.state.integrations = manager
     yield
+    manager.stop()
 
 
 app = FastAPI(
@@ -64,6 +70,7 @@ for router in (
     credentials_router,
     offline_router,
     activity_router,
+    integrations_router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
 

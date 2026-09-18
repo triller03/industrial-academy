@@ -691,6 +691,54 @@ async function syncNow() {
 async function loadAdmin() {
   if (!state.user || !state.user.is_admin) return;
   loadActivity();
+  loadIntegrations();
+}
+
+async function loadIntegrations() {
+  const host = $("#int-status");
+  if (!host || !state.user || !state.user.is_admin) return;
+  let st;
+  try {
+    st = await api("/integrations");
+  } catch (err) {
+    host.innerHTML = "<p class='muted'>Could not load integrations: " + esc(err.message) + "</p>";
+    return;
+  }
+  const names = [
+    ["modbus", "FACTORY I/O (Modbus TCP)"],
+    ["s7", "Siemens S7 (snap7)"],
+    ["opcua", "WinCC / SCADA (OPC UA)"],
+  ];
+  host.innerHTML = names.map(([key, label]) => {
+    const entry = st[key] || {};
+    const stateCls = entry.state === "running" ? "ok" : (entry.state === "error" ? "bad" : "warn");
+    return `<div class="panel-item"><div class="title">${esc(label)} <span class="${stateCls}">${esc(entry.state || "unknown")}</span></div>` +
+      `<div class="sub">${esc(entry.detail || "")}</div></div>`;
+  }).join("");
+
+  const snap = st.modbus && st.modbus.snapshot;
+  const detail = $("#int-detail");
+  if (!snap || !snap.actuators) {
+    detail.innerHTML = "<p class='muted'>No live registers yet.</p>";
+    return;
+  }
+  const cols = (obj) => Object.entries(obj || {}).map(([k, v]) => `<div>${esc(k)} = ${esc(typeof v === "number" ? v.toFixed(2) : v)}</div>`).join("");
+  detail.innerHTML = `<table class="int-table">
+    <tr><th>Actuators (from FIO)</th><th>Sensors (to FIO)</th><th>Setpoints (from FIO)</th><th>Measurements (to FIO)</th></tr>
+    <tr><td>${cols(snap.actuators)}</td><td>${cols(snap.sensors)}</td><td>${cols(snap.setpoints)}</td><td>${cols(snap.measurements)}</td></tr>
+  </table>`;
+}
+
+async function runIntegrationAction(label, fn) {
+  const msg = $("#int-msg");
+  if (msg) msg.textContent = label + "…";
+  try {
+    const result = await fn();
+    if (msg) msg.textContent = typeof result === "string" ? result : JSON.stringify(result);
+  } catch (err) {
+    if (msg) msg.textContent = "Failed: " + err.message;
+  }
+  loadIntegrations();
 }
 
 async function loadActivity() {
@@ -774,6 +822,14 @@ $("#pd-complete").onclick = markSectionComplete;
 $("#download-bundles").onclick = downloadAllBundles;
 $("#gen-form").onsubmit = (e) => { e.preventDefault(); generateProject(); };
 $("#activity-refresh").onclick = loadActivity;
+$("#int-modbus-start").onclick = () => runIntegrationAction("Starting Modbus link", () => api("/integrations/modbus/start", { method: "POST" }));
+$("#int-modbus-stop").onclick = () => runIntegrationAction("Stopping Modbus link", () => api("/integrations/modbus/stop", { method: "POST" }));
+$("#int-s7-probe").onclick = () => runIntegrationAction("Testing S7", () => api("/integrations/s7/probe", { method: "POST" }));
+$("#int-opcua-probe").onclick = () => runIntegrationAction("Testing OPC UA", () => api("/integrations/opcua/probe", { method: "POST" }));
+$("#int-snapshot").onclick = () => runIntegrationAction("Recording snapshot", () => api("/integrations/snapshot", { method: "POST" }));
+setInterval(() => {
+  if (!$("#view-admin").classList.contains("hidden") && state.user && state.user.is_admin) loadIntegrations();
+}, 4000);
 document.addEventListener("offline-status", () => { if (!$("#view-devices").classList.contains("hidden")) renderBundles(); });
 
 // ---------- go ----------

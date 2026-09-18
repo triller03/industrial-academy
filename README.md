@@ -41,6 +41,9 @@ The flagship project is a **500 m³/h municipal water treatment plant** — 17 l
 - **Audit trail** — user actions (section completions, credential issuance, fault attempts, syncs,
   project generation, bundle rebuilds) are recorded in `activity_logs` and readable via `GET /activity`.
 - **Single-page frontend** — vanilla HTML/CSS/JS served by FastAPI. No build step, works offline.
+- **Live integrations** — a Modbus TCP server bridges FACTORY I/O into the app (port 502), with
+  optional Siemens S7 (snap7) and WinCC/OPC UA links. Status + live registers under **Admin → Live
+  integrations**; see *Integrations* below.
 
 ---
 
@@ -51,10 +54,11 @@ industrial-academy/
 ├── backend/
 │   ├── app/
 │   │   ├── activity.py    # audit-trail helper (activity_logs)
-│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity
+│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity, integrations
 │   │   ├── content/      # project generator (17-section lifecycle, industry templates) + admin service
 │   │   ├── core/         # security: password hashing, JWT access/refresh tokens
 │   │   ├── fault/        # decision trees + diagnosis evaluator + check palette
+│   │   ├── integrations/ # Modbus TCP (FACTORY I/O), snap7 (S7), OPC UA (WinCC) links + manager
 │   │   ├── mentor/       # Socratic mentor engine (safety / guided / socratic)
 │   │   ├── models/       # 14 SQLAlchemy tables
 │   │   ├── offline/      # content-addressed bundle builder
@@ -66,18 +70,19 @@ industrial-academy/
 │   │   └── main.py       # FastAPI app, routers, static frontend mount
 │   ├── tests/            # integration + static checks (see Testing)
 │   ├── requirements.txt
+│   ├── requirements-integrations.txt   # optional hardware-link dependencies
 │   └── run.py
 └── frontend/
     ├── index.html        # auth screen + app shell (6 tabs)
     ├── sw.js             # service worker (app-shell cache only)
     ├── css/styles.css
     └── js/
-        ├── app.js        # SPA: routing, dashboard, mentor, faults, devices
+        ├── app.js        # SPA: routing, dashboard, mentor, faults, devices, integrations
         └── offline.js    # IndexedDB bundles, offline queue, local progress
 ```
 
 **Stack:** FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2 · SQLite · JWT (python-jose) ·
-passlib/bcrypt.
+passlib/bcrypt · pymodbus (optional) · python-snap7 (optional) · asyncua (optional).
 
 The frontend is mounted at `/` via `StaticFiles`, so the API and UI are served from one process.
 
@@ -194,6 +199,46 @@ Offline learning flow:
 
 ---
 
+## Integrations (FACTORY I/O · TIA Portal · WinCC)
+
+Optional hardware/simulation links. Install them with
+`pip install -r requirements-integrations.txt`; without them the links simply report *disabled*.
+Enable with env vars: `INTEGRATION_SIMS_PLANT`/`INTEGRATION_MODBUS_ENABLED` are on by default;
+`INTEGRATION_S7_ENABLED=1`, `INTEGRATION_OPCUA_ENABLED=1` switch on the others (see `app/config.py`).
+
+### FACTORY I/O → Modbus TCP bridge (default on, port 502)
+
+In FACTORY I/O pick **Driver → Modbus TCP/IP Client** and point it at `127.0.0.1:502`:
+
+| FACTORY I/O configuration | Setting |
+|---|---|
+| Read Digital | **Coils** |
+| Digital Inputs (sensors) | offset **64**, e.g. 10 coils |
+| Digital Outputs (actuators) | offset **0**, e.g. 8 coils |
+| Read Register | **Input Registers** |
+| Register Inputs (measurements) | offset **0**, e.g. 6 registers |
+| Register Outputs (setpoints) | offset **0**, e.g. 5 registers (Holding) |
+
+The app writes sensor bits and analog measurements into the FIO side; FIO writes actuator bits and
+setpoints back into the app. All analog values are scaled **×100** (FIO *Scale: 100*). With a real
+PLC absent, the built-in plant simulator drives the sensor/measurement registers every second; the
+admin view (**Admin → Live integrations**) shows the live map, which round-trips over real Modbus.
+`POST /api/integrations/snapshot` logs the current register map to the audit trail.
+
+### Siemens S7 (snap7)
+
+`INTEGRATION_S7_ENABLED=1`, `INTEGRATION_S7_IP=192.168.0.1` (rack 0, slot 1, DB 1). The link polls
+DB1: byte 0 bits 0–3 = `start/running/estop/reset`, INTs at bytes 2 = `level`, 4 = `speed`,
+6 = `speed_setpoint` (writable). Use **Admin → Live integrations → Test S7** to probe.
+
+### WinCC / SCADA (OPC UA)
+
+`INTEGRATION_OPCUA_ENABLED=1`, `INTEGRATION_OPCUA_URL=opc.tcp://127.0.0.1:4840`,
+`INTEGRATION_OPCUA_NODES=ns=2;s=Tag1,ns=2;s=Tag2`. The link polls the listed node ids and shows live
+values in the admin view.
+
+---
+
 ## Testing
 
 With the server running (`python run.py`), from `backend/`:
@@ -205,6 +250,7 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\admin_test.py        # 11 admin/rebuild/auth-path checks
 .\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
+.\.venv\Scripts\python.exe tests\integration_test.py  # 20 Modbus bridge + live-register checks
 ```
 
 Or run all suites at once (checks the server is up first):

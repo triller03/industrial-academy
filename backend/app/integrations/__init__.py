@@ -1,0 +1,1 @@
+"""Integration layer: links the academy to FACTORY I/O (Modbus TCP), Siemens S7 PLCs and WinCC (OPC UA)."""

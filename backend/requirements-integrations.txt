@@ -1,0 +1,7 @@
+# Optional integration layer: FACTORY I/O (Modbus TCP), Siemens S7 (snap7),
+# WinCC / SCADA (OPC UA). The API runs without these (links report "disabled").
+#   pip install -r requirements-integrations.txt
+
+pymodbus==3.8.5
+python-snap7==3.1.2
+asyncua==2.0.1

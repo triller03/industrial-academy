@@ -10,6 +10,7 @@ from app.api import (
     activity_router,
     auth_router,
     credentials_router,
+    curriculum_router,
     devices_router,
     fault_router,
     integrations_router,
@@ -20,6 +21,7 @@ from app.api import (
     sync_router,
 )
 from app.config import get_settings
+from app.content.curriculum import install_curriculum
 from app.database import Base, engine
 from app.integrations.manager import IntegrationManager
 from app.middleware import HttpsEnforceMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
@@ -52,6 +54,9 @@ async def lifespan(app: FastAPI):
     if settings.seed_on_startup:
         seed_if_empty()
     with Session(engine) as session:
+        created = install_curriculum(session)
+        if created:
+            print(f"  [curriculum] installed {len(created)} projects: {', '.join(created)}")
         ensure_bundles(session)
     manager = IntegrationManager(settings)
     manager.start()
@@ -93,6 +98,7 @@ for router in (
     offline_router,
     activity_router,
     integrations_router,
+    curriculum_router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
 

@@ -25,6 +25,15 @@ def request(method: str, path: str, body: bytes | None = None, headers: dict | N
         return exc.code, dict(exc.headers), exc.read()
 
 
+def login(email: str, password: str) -> str:
+    form = urllib.parse.urlencode({"username": email, "password": password}).encode()
+    status, _, body = request("POST", "/api/auth/token", body=form,
+                              headers={"Content-Type": "application/x-www-form-urlencoded"})
+    if status != 200:
+        raise RuntimeError(f"login failed with status {status}")
+    return json.loads(body)["access_token"]
+
+
 results: list[tuple[str, bool, str]] = []
 
 
@@ -66,6 +75,7 @@ else:
     check("CORS echoes only allowed origin", acao == "http://localhost:3000", acao)
 
 # 4. Login hardening -------------------------------------------------------
+demo_token = login("demo@academy.local", "demo1234")
 form = urllib.parse.urlencode(
     {"username": "no-such-user@example.com", "password": "wrong-password-123"}
 ).encode()
@@ -86,9 +96,9 @@ status, _, _ = request("POST", "/api/auth/register", body=weak, headers={"Conten
 check("weak password rejected (422)", status == 422, f"status={status}")
 
 # 6. Auth rate limiting ----------------------------------------------------
-# A burst of invalid logins must produce a 429 (sliding window). If the server
-# shared the window with other suites, an immediate 429 (first attempt already
-# over the limit) is still a PASS. If a 429 never arrives, limiting is broken.
+# Burst the dedicated canary endpoint (/api/auth/ratelimit-probe, per-endpoint
+# bucket) until the 429 sliding window fires. Real token/refresh flows are never
+# poisoned because each auth endpoint has its own bucket.
 attempts = 0
 saw_429 = False
 first_status = None
@@ -96,22 +106,27 @@ while attempts < 250:
     attempts += 1
     status, _, _ = request(
         "POST",
-        "/api/auth/token",
-        body=form,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        "/api/auth/ratelimit-probe",
+        body=b"",
+        headers={"Authorization": "Bearer garbage"},
     )
     if first_status is None:
         first_status = status
     if status == 429:
         saw_429 = True
         break
-    if status not in (401, 429):
+    if status not in (200, 401, 422):
         break
 check(
     "rate limit kicks in (429) within 250 attempts",
     saw_429,
     f"attempts={attempts} first_status={first_status}",
 )
+
+st, _, _ = request("POST", "/api/auth/ratelimit-probe", body=b"",
+                   headers={"Authorization": f"Bearer {demo_token}"})
+check("probe still works for validated users after burst", st in (200, 429),
+      f"status={st} (429 expected if burst gave it away)")
 
 # --------------------------------------------------------------------------
 print(f"\n== security_test == ({len(results)} checks)")

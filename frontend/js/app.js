@@ -786,6 +786,26 @@ async function generateProject() {
   }
 }
 
+async function syncCurriculum() {
+  const out = $("#cur-out");
+  const btn = $("#cur-install");
+  if (!out || !btn) return;
+  out.textContent = "Syncing…";
+  btn.disabled = true;
+  try {
+    const res = await api("/curriculum/install", { method: "POST" });
+    out.textContent = res.created.length
+      ? `Installed ${res.created.length}: ${res.created.join(", ")}`
+      : "Up to date — no new projects.";
+    await loadProjects();
+  } catch (err) {
+    out.textContent = "Failed: " + err.message;
+  } finally {
+    btn.disabled = false;
+    loadActivity();
+  }
+}
+
 // ---------- service worker ----------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -827,6 +847,7 @@ $("#int-modbus-stop").onclick = () => runIntegrationAction("Stopping Modbus link
 $("#int-s7-probe").onclick = () => runIntegrationAction("Testing S7", () => api("/integrations/s7/probe", { method: "POST" }));
 $("#int-opcua-probe").onclick = () => runIntegrationAction("Testing OPC UA", () => api("/integrations/opcua/probe", { method: "POST" }));
 $("#int-snapshot").onclick = () => runIntegrationAction("Recording snapshot", () => api("/integrations/snapshot", { method: "POST" }));
+$("#cur-install").onclick = syncCurriculum;
 setInterval(() => {
   if (!$("#view-admin").classList.contains("hidden") && state.user && state.user.is_admin) loadIntegrations();
 }, 4000);

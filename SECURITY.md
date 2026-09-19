@@ -34,7 +34,7 @@ only via a reverse proxy. The control scope of hardening is:
 | --- | --- | --- |
 | Headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` | `tests/security_test.py` |
 | CSP (SPA) | `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data:`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` | `tests/security_test.py` |
-| Rate limiting | Per-IP sliding window, `/api/auth/*` (default 60/min) + global (600/min) | `tests/security_test.py` |
+| Rate limiting | Per-IP sliding window, bucketed per auth endpoint (default 60/min each) + global `/api/*` budget (600/min) | `tests/security_test.py` |
 | Auth | Generic 401, min 8-char passwords at registration, account disable flag | `tests/security_test.py`, `smoke_test.py` |
 | Tokens | Short-lived JWT access + rotating single-use refresh tokens | `tests/refresh_test.py` |
 | AuthZ | Admin-only generation/rebuild/integration controls return `403` otherwise | `tests/admin_test.py`, `integration_test.py` |

@@ -5,8 +5,11 @@ full 17-section engineering project lifecycle, guided by a Socratic AI mentor, t
 competence by diagnosing injected faults. Progress, certificates, and portfolio entries are issued
 by the platform.
 
-The flagship project is a **500 m³/h municipal water treatment plant** — 17 lifecycle sections and
-8 fault scenarios.
+The platform ships an authored learning path — the **Automation Technician
+Foundations** curriculum (4 projects: motor starter, instrument loop, conveyor
+sorter cell, chlorine dosing skid) building up to the flagship **500 m³/h
+municipal water treatment plant**. See [`CURRICULUM.md`](CURRICULUM.md) for the
+full track, and Admin → *Learning content* for the sync action.
 
 ---
 
@@ -309,7 +312,7 @@ Baseline hardening ships in `backend/app/middleware.py` and is verified by
 | --- | --- |
 | Response headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` |
 | CSP (SPA) | `default-src 'self'`, `script-src 'self'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` |
-| Auth rate limiting | Per-IP sliding window on `/api/auth/*` (default 60/min) + global `/api/*` budget |
+| Auth rate limiting | Per-IP sliding window, bucketed per auth endpoint (login/refresh), so one abused endpoint can't lock a user out of another |
 | Login hardening | Generic 401 on bad credentials; accounts can be disabled; passwords ≥ 8 chars at registration |
 | Token lifecycle | Refresh tokens rotate on use and are rejected on reuse |
 | Production guard | Boot fails if `ENVIRONMENT=production` with the default `SECRET_KEY`; docs/traces disabled |

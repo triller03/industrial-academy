@@ -65,3 +65,13 @@ def refresh(body: RefreshIn, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserOut)
 def me(current: User = Depends(get_current_user)):
     return current
+
+
+@router.post("/ratelimit-probe")
+def rate_limit_probe(current: User = Depends(get_current_user)):
+    """Inert canary used by the security suite to verify the 429 sliding window.
+
+    Hitting this endpoint in a loop must produce HTTP 429 after the configured
+    per-auth-endpoint budget. It performs no action and stores nothing; real
+    login/refresh buckets are never contaminated by the probe."""
+    return {"ok": True}

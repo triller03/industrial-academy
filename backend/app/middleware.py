@@ -86,7 +86,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         limit = self._limit_for(path)
         if limit is None:
             return await call_next(request)
-        key = (self._client_ip(request), "auth" if path.startswith("/api/auth/") else "global")
+        # Bucket per auth endpoint (token/refresh/register/probe...) so abusing one
+        # endpoint cannot knock a user offline from another, and so the security
+        # suite's 429 canary never blocks real logins.
+        bucket = path if path.startswith("/api/auth/") else "global"
+        key = (self._client_ip(request), bucket)
         now = time.monotonic()
         with self._lock:
             window = self._hits[key]

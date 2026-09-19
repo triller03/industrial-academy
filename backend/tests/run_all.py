@@ -4,7 +4,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-SUITES = ["smoke_test", "refresh_test", "offline_test", "admin_test", "generator_test", "frontend_static", "integration_test", "security_test"]
+SUITES = ["smoke_test", "refresh_test", "offline_test", "admin_test", "generator_test", "frontend_static", "integration_test", "curriculum_test", "security_test"]
 
 
 def server_up() -> bool:

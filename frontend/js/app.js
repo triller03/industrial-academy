@@ -339,43 +339,121 @@ $("#project-back").onclick = () => {
 };
 
 // ---------- dashboard ----------
-async function loadDashboard() {
-  let rows = [];
-  try { rows = await api("/progress"); } catch { /* ignore */ }
+function fmtDuration(sec) {
+  sec = sec || 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
+function renderStatCards(cards, selector) {
+  const host = $(selector);
+  if (!host) return;
+  host.innerHTML = cards.map((c) =>
+    `<div class="stat-card"><div class="stat-value">${esc(String(c.value))}</div><div class="stat-label">${esc(c.label)}</div></div>`).join("");
+}
+
+function renderBarChart(series, daily, selector) {
+  const host = $(selector);
+  if (!host) return;
+  host.innerHTML = "";
+  const keys = Object.keys(series);
+  const max = Math.max(1, ...daily.map((d) => keys.reduce((acc, k) => acc + (d[k] || 0), 0)));
+  daily.forEach((d) => {
+    const col = el("div", "bar-col");
+    const bars = keys.map((k) => {
+      const val = d[k] || 0;
+      const h = val ? Math.max(4, Math.round((val / max) * 100)) : 0;
+      return `<div class="bar" title="${esc(series[k])}: ${val}" style="height:${h}%"></div>`;
+    }).join("");
+    col.innerHTML = `<div class="bars">${bars}</div><div class="bar-label">${esc(d.date.slice(5))}</div>`;
+    host.appendChild(col);
+  });
+}
+
+function renderDashboardRings(projectStats) {
   const grid = $("#dash-grid");
   grid.innerHTML = "";
-  const byProject = {};
-  rows.forEach((r) => { (byProject[r.project_id] = byProject[r.project_id] || []).push(r); });
-  // Overlay locally-completed sections that have not synced yet.
-  state.projects.forEach((p) => {
-    const local = Offline.getLocalProgress(p.id);
-    Object.keys(local).forEach((key) => {
-      const existing = (byProject[p.id] || []).find((r) => r.section_key === key);
-      if (existing) { if (local[key].status === "completed") existing.status = "completed"; }
-      else byProject[p.id] = (byProject[p.id] || []).concat([{ project_id: p.id, section_key: key, status: local[key].status, score: local[key].score || 0, updated_at: local[key].updated_at }]);
-    });
-  });
-
-  if (!state.projects.length) { grid.innerHTML = "<p class='muted'>No projects yet.</p>"; return; }
-  for (const p of state.projects) {
-    const proj = byProject[p.id] || [];
-    const done = proj.filter((r) => r.status === "completed").length;
-    const total = 17;
-    const pct = Math.round((done / total) * 100);
+  projectStats.forEach((p) => {
+    const local = Offline.getLocalProgress(p.project_id);
+    const localDone = Object.values(local).filter((r) => r.status === "completed").length;
+    const done = Math.min(p.total_sections, p.completed_sections + localDone);
+    const pct = p.total_sections ? Math.round((done / p.total_sections) * 100) : 0;
     const div = el("div", "progress-ring");
-    div.innerHTML = `<div class="ring" style="--p:${pct}%"><div>${pct}%</div></div><div class="ring-label">${esc(p.title)}</div>`;
+    div.innerHTML = `<div class="ring" style="--p:${pct}%"><div>${pct}%</div></div>
+      <div class="ring-label">${esc(p.title)}</div>
+      <div class="ring-sub">${done}/${p.total_sections} sections</div>`;
     grid.appendChild(div);
-  }
-  const allRows = Object.values(byProject).flat();
+  });
+}
+
+function renderDashboardRecent(rows) {
   const list = $("#dash-project-list");
   list.innerHTML = "";
-  allRows.slice().sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")).slice(0, 8).forEach((r) => {
+  rows.slice().sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || "")).slice(0, 8).forEach((r) => {
     const p = state.projects.find((x) => x.id === r.project_id);
     list.appendChild(el("div", "panel-item",
       `<div class="title">${esc(p ? p.title : "Project " + r.project_id)} — ${esc(String(r.section_key || "").replace(/_/g, " "))}</div>
        <div class="sub">${esc(r.status)} · score ${r.score} · updated ${esc(String(r.updated_at || "").slice(0, 16).replace("T", " "))}</div>`));
   });
-  if (!allRows.length) list.innerHTML = "<p class='muted'>No progress recorded yet. Open a project to begin.</p>";
+  if (!rows.length) list.innerHTML = "<p class='muted'>No progress recorded yet. Open a project to begin.</p>";
+}
+
+async function loadDashboard() {
+  let stats = null;
+  try {
+    stats = await api("/stats/learner");
+  } catch { /* offline */ }
+
+  if (stats) {
+    renderStatCards([
+      { label: "Sections completed", value: stats.sections_completed },
+      { label: "Projects started", value: stats.projects_started },
+      { label: "Certificates", value: stats.certificates },
+      { label: "Fault lab accuracy", value: stats.fault_attempts ? Math.round(stats.fault_score_avg * 100) + "%" : "—" },
+      { label: "Current streak", value: stats.streak_days + " day" + (stats.streak_days === 1 ? "" : "s") },
+      { label: "Time on site", value: fmtDuration(stats.time_spent_seconds) },
+    ], "#dash-stats");
+    renderBarChart({ sections: "Sections", faults: "Fault attempts" }, stats.daily, "#dash-chart");
+    const grid = $("#dash-grid");
+    if (!stats.projects.length) {
+      grid.innerHTML = "<p class='muted'>No projects started yet — open one from the Projects tab.</p>";
+    } else {
+      renderDashboardRings(stats.projects);
+    }
+  } else {
+    // Offline fallback: rings from raw progress rows + local cache.
+    let rows = [];
+    try { rows = await api("/progress"); } catch { /* ignore */ }
+    const grid = $("#dash-grid");
+    grid.innerHTML = "";
+    const byProject = {};
+    rows.forEach((r) => { (byProject[r.project_id] = byProject[r.project_id] || []).push(r); });
+    state.projects.forEach((p) => {
+      const local = Offline.getLocalProgress(p.id);
+      Object.keys(local).forEach((key) => {
+        const existing = (byProject[p.id] || []).find((r) => r.section_key === key);
+        if (existing) { if (local[key].status === "completed") existing.status = "completed"; }
+        else byProject[p.id] = (byProject[p.id] || []).concat([{ project_id: p.id, section_key: key, status: local[key].status, score: local[key].score || 0, updated_at: local[key].updated_at }]);
+      });
+    });
+    if (!state.projects.length) { grid.innerHTML = "<p class='muted'>No projects yet.</p>"; return; }
+    for (const p of state.projects) {
+      const proj = byProject[p.id] || [];
+      const done = proj.filter((r) => r.status === "completed").length;
+      const total = 17;
+      const pct = Math.round((done / total) * 100);
+      const div = el("div", "progress-ring");
+      div.innerHTML = `<div class="ring" style="--p:${pct}%"><div>${pct}%</div></div><div class="ring-label">${esc(p.title)}</div>`;
+      grid.appendChild(div);
+    }
+  }
+
+  let rows = [];
+  try { rows = await api("/progress"); } catch { /* ignore */ }
+  renderDashboardRecent(rows);
 }
 
 // ---------- mentor ----------
@@ -692,6 +770,48 @@ async function loadAdmin() {
   if (!state.user || !state.user.is_admin) return;
   loadActivity();
   loadIntegrations();
+  loadAdminAnalytics();
+}
+
+async function loadAdminAnalytics() {
+  let a;
+  try {
+    a = await api("/stats/admin");
+  } catch (err) {
+    const host = $("#admin-stats");
+    if (host) host.innerHTML = "<p class='muted'>Could not load analytics: " + esc(err.message) + "</p>";
+    return;
+  }
+  renderStatCards([
+    { label: "Total users", value: a.users_total },
+    { label: "Learners", value: a.learners_total },
+    { label: "Active 7d", value: a.users_active_7d },
+    { label: "Active 30d", value: a.users_active_30d },
+    { label: "Sections completed", value: a.sections_completed_total },
+    { label: "Certificates issued", value: a.certificates_total },
+    { label: "Enrollments", value: a.enrollments_total },
+    { label: "Completion rate", value: Math.round(a.completion_rate * 100) + "%" },
+    { label: "Fault attempts", value: a.fault_attempts_total },
+    { label: "Fault accuracy", value: a.fault_accuracy ? Math.round(a.fault_accuracy * 100) + "%" : "—" },
+  ], "#admin-stats");
+  renderBarChart({ users_active: "Active users", actions: "Actions" }, a.daily, "#admin-chart");
+
+  const pt = $("#admin-projects");
+  pt.innerHTML = `<table class="int-table"><tr><th>Project</th><th>Industry</th><th>Enrolled</th><th>Completed</th><th>Rate</th><th>Avg progress</th></tr>` +
+    a.by_project.map((p) => `<tr><td>${esc(p.title)}</td><td>${esc(p.industry)}</td><td>${p.enrollments}</td><td>${p.completions}</td>` +
+      `<td>${Math.round(p.completion_rate * 100)}%</td><td>${p.avg_progress}%</td></tr>`).join("") + `</table>`;
+
+  const it = $("#admin-industry");
+  it.innerHTML = `<table class="int-table"><tr><th>Industry</th><th>Projects</th><th>Enrolled</th><th>Completed</th><th>Rate</th></tr>` +
+    a.by_industry.map((i) => `<tr><td>${esc(i.industry)}</td><td>${i.projects}</td><td>${i.enrollments}</td><td>${i.completions}</td>` +
+      `<td>${Math.round(i.completion_rate * 100)}%</td></tr>`).join("") + `</table>`;
+
+  const ul = $("#admin-users");
+  ul.innerHTML = a.recent_users.length
+    ? a.recent_users.map((u) => `<div class="panel-item"><div class="title">${esc(u.full_name)}` +
+        (u.is_admin ? ` <span class="chip">admin</span>` : "") + `</div>` +
+        `<div class="sub">${esc(u.email)} · ${esc(u.institution || "no institution")} · joined ${esc(String(u.created_at).slice(0, 10))}</div></div>`).join("")
+    : "<p class='muted'>No users yet.</p>";
 }
 
 async function loadIntegrations() {

@@ -117,6 +117,27 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .chip.industry { color: var(--accent); border-color: var(--accent); }
 
 /* Progress */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+.stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.stat-card .stat-value { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.stat-card .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.bar-chart {
+  display: flex; align-items: flex-end; gap: 6px; height: 150px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 14px 10px; overflow-x: auto;
+}
+.bar-col { flex: 1; min-width: 26px; height: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end; }
+.bars { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; min-height: 0; }
+.bar { border-radius: 4px 4px 2px 2px; background: var(--accent); transition: filter .15s; }
+.bar:hover { filter: brightness(1.2); }
+.bar:nth-child(2) { background: var(--warn); }
+.bar-label { text-align: center; font-size: 10px; color: var(--muted); margin-top: 6px; }
+.ring-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.table-wrap { overflow-x: auto; }
+.table-wrap .int-table { min-width: 520px; }
+
 .grid-progress { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 18px 0 8px; }
 .progress-ring { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; text-align: center; }
 .ring { --p: 0; width: 96px; height: 96px; margin: 0 auto 10px; border-radius: 50%;

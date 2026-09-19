@@ -262,3 +262,89 @@ class PortfolioOut(ORMModel):
     title: str
     summary: str
     created_at: datetime
+
+
+# ---------- Stats / analytics ----------
+class DailyActivityOut(BaseModel):
+    date: str  # ISO yyyy-mm-dd (UTC)
+    sections: int = 0
+    faults: int = 0
+    actions: int = 0
+    users_active: int = 0
+
+
+class ProjectStatsOut(BaseModel):
+    project_id: int
+    slug: str
+    title: str
+    industry: str
+    difficulty: str
+    hours: int
+    total_sections: int
+    completed_sections: int
+    percent: float
+    status: str  # completed | in_progress | not_started
+
+
+class LearnerStatsOut(BaseModel):
+    sections_completed: int
+    projects_started: int
+    certificates: int
+    time_spent_seconds: int
+    fault_attempts: int
+    faults_correct: int
+    fault_score_avg: float
+    streak_days: int
+    longest_streak: int
+    active_days: int
+    daily: list[DailyActivityOut]
+    projects: list[ProjectStatsOut]
+
+
+class AdminProjectStats(BaseModel):
+    project_id: int
+    slug: str
+    title: str
+    industry: str
+    difficulty: str
+    hours: int
+    enrollments: int
+    completions: int
+    completion_rate: float
+    avg_progress: float
+
+
+class AdminIndustryStats(BaseModel):
+    industry: str
+    projects: int
+    enrollments: int
+    completions: int
+    completion_rate: float
+
+
+class AdminUserRow(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    institution: str | None
+    is_admin: bool
+    created_at: datetime
+
+
+class AdminAnalyticsOut(BaseModel):
+    users_total: int
+    learners_total: int
+    users_active_7d: int
+    users_active_30d: int
+    projects_total: int
+    projects_published: int
+    sections_completed_total: int
+    certificates_total: int
+    enrollments_total: int
+    fault_attempts_total: int
+    fault_accuracy: float
+    completion_rate: float
+    daily: list[DailyActivityOut]
+    by_project: list[AdminProjectStats]
+    by_industry: list[AdminIndustryStats]
+    recent_users: list[AdminUserRow]

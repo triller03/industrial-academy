@@ -57,7 +57,7 @@ industrial-academy/
 ├── backend/
 │   ├── app/
 │   │   ├── activity.py    # audit-trail helper (activity_logs)
-│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity, integrations
+│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity, integrations, stats
 │   │   ├── content/      # project generator (17-section lifecycle, industry templates) + admin service
 │   │   ├── core/         # security: password hashing, JWT access/refresh tokens
 │   │   ├── fault/        # decision trees + diagnosis evaluator + check palette
@@ -169,6 +169,7 @@ All endpoints are prefixed with `/api`.
 | Offline | `GET /offline/manifest` · `GET /projects/{id}/offline-bundle` · `POST /offline/rebuild` (admin) |
 | Credentials | `GET /credentials/certificates` · `GET /credentials/portfolio` · `GET /credentials/certificates/verify/{token}` |
 | Activity | `GET /activity` (admin sees all users) |
+| Stats | `GET /stats/learner` (dashboard rollups, streaks, 14-day activity) · `GET /stats/admin` (admin platform analytics) |
 | Health | `GET /health` |
 
 The fault-detail endpoint deliberately omits the expected checks and correct diagnosis; those are
@@ -263,6 +264,8 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
 .\.venv\Scripts\python.exe tests\integration_test.py  # 20 Modbus bridge + live-register checks
+.\.venv\Scripts\python.exe tests\curriculum_test.py    # 35 authored-curriculum content checks
+.\.venv\Scripts\python.exe tests\stats_test.py         # 33 learner + admin analytics checks
 .\.venv\Scripts\python.exe tests\security_test.py     # headers, CSP, CORS, rate-limit checks
 ```
 
@@ -301,7 +304,7 @@ Persistent state:
 - SQLite DB → `./data/academy.db` (auto-created container volume)
 - Generated offline bundles → `./data/offline_packages/`
 
-CI smoke-tests every PR; the full 8-suite gate runs on `main`.
+CI smoke-tests every PR; the full 10-suite gate runs on `main`.
 
 ## Security
 

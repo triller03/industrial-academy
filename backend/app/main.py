@@ -18,6 +18,7 @@ from app.api import (
     offline_router,
     progress_router,
     projects_router,
+    stats_router,
     sync_router,
 )
 from app.config import get_settings
@@ -99,6 +100,7 @@ for router in (
     activity_router,
     integrations_router,
     curriculum_router,
+    stats_router,
 ):
     app.include_router(router, prefix=settings.api_prefix)
 

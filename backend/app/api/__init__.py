@@ -9,6 +9,7 @@ from app.api.routes_mentor import router as mentor_router
 from app.api.routes_progress import router as progress_router
 from app.api.routes_offline import router as offline_router
 from app.api.routes_projects import router as projects_router
+from app.api.routes_stats import router as stats_router
 from app.api.routes_sync import router as sync_router
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "offline_router",
     "progress_router",
     "projects_router",
+    "stats_router",
     "sync_router",
 ]

@@ -1,0 +1,66 @@
+# Security
+
+The AI-Powered Industrial Academy is hardened for self-hosting behind a TLS
+terminating reverse proxy. This file summarises the threat stance, the built-in
+controls and the deployment checklist.
+
+## Reporting a vulnerability
+
+This project is an educational deployment for industrial trainees. If you find
+a real vulnerability: **do not disclose it in public issues** — open a private
+report on the repository, or reach out to the maintainer directly, and include
+reproduction steps plus the affected version.
+
+## Threat model
+
+The platform ships offline-first to shop-floor networks and is typically exposed
+only via a reverse proxy. The control scope of hardening is:
+
+- **Credential abuse** — /api/auth/* is rate-limited per client IP; accounts can
+  be disabled server-side; refresh tokens single-use.
+- **Spoofed origins** — CORS is allow-list configurable; the SPA is served with
+  a strict Content-Security-Policy.
+- **Information disclosure** — production builds disable `/docs`, `/redoc` and
+  the OpenAPI schema; error details for failed logins are generic; audit-trail
+  endpoints only expose cross-user activity to admins.
+- **Misconfiguration** — the production guard refuses to boot with the default
+  `SECRET_KEY`; `REQUIRE_HTTPS` rejects plain-http clients.
+- **Legal mislabelling** — offline bundles strip mentor/fault answer keys; the
+  bundle build is admin-only.
+
+## Built-in controls
+
+| Area | Control | Verified by |
+| --- | --- | --- |
+| Headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` | `tests/security_test.py` |
+| CSP (SPA) | `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `img-src 'self' data:`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` | `tests/security_test.py` |
+| Rate limiting | Per-IP sliding window, `/api/auth/*` (default 60/min) + global (600/min) | `tests/security_test.py` |
+| Auth | Generic 401, min 8-char passwords at registration, account disable flag | `tests/security_test.py`, `smoke_test.py` |
+| Tokens | Short-lived JWT access + rotating single-use refresh tokens | `tests/refresh_test.py` |
+| AuthZ | Admin-only generation/rebuild/integration controls return `403` otherwise | `tests/admin_test.py`, `integration_test.py` |
+| Production guard | Boot-time `SECRET_KEY` check; docs/OpenAPI disabled in `production` | startup (documented) |
+| HTTPS | `REQUIRE_HTTPS=1` → `426` without `X-Forwarded-Proto: https` | startup (documented) |
+
+## Deployment checklist
+
+1. `cp .env.example .env` and generate a real key:
+   `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
+2. Set `ENVIRONMENT=production`, `CORS_ORIGINS` to your frontend origin(s) only.
+3. Terminate TLS at your reverse proxy, set `REQUIRE_HTTPS=1`, and forward
+   `X-Forwarded-For`/`X-Forwarded-Proto` from trusted upstreams only.
+4. Remove or disable the seeded `demo@`/`admin@academy.local` accounts before
+   real users join, or set `SEED_ON_STARTUP=false` on a fresh database.
+5. Scope: `/api/health` and `/` (SPA) may be public; everything under `/api/*`
+   besides health requires a token.
+
+## Industrial safety
+
+The plant failsafe is a **teaching simulation only**. It exercises e-stop
+deglitching, motion freeze, lamp clearance and interlock audit events, but it is
+not a safety-rated control — deploy against real machines only with certified
+hardware safety circuits.
+
+## Dependencies
+
+Pinned in `requirements.txt` / `requirements-integrations.txt`; CI installs and
+smoke-tests the exact same pins. Review updates before bumping either file.

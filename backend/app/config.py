@@ -10,10 +10,22 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     api_prefix: str = "/api"
 
+    # Production asks "no". Set ENVIRONMENT=production when deploying (enables
+    # the startup guard, HTTPS enforcement and restricted CORS defaults).
+    environment: str = "development"
     database_url: str = "sqlite:///./academy.db"
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24
     algorithm: str = "HS256"
+
+    # Network hardening
+    cors_origins: str = "*"  # comma-separated; "*" = allow all (development)
+    require_https: bool = False
+    trusted_proxies: str = ""  # comma-separated CIDRs whose X-Forwarded-For is honoured
+
+    # Abuse protection (sliding window, per client IP)
+    rate_limit_auth_per_minute: int = 60
+    rate_limit_global_per_minute: int = 600
 
     device_limit_per_user: int = 3
     max_days_offline_sync: int = 90

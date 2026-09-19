@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: development
+      SECRET_KEY: ci-only-not-a-secret
+      DATABASE_URL: sqlite:///./ci.db
+      RATE_LIMIT_AUTH_PER_MINUTE: "60"
+      RATE_LIMIT_GLOBAL_PER_MINUTE: "2000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-integrations.txt
+
+      - name: Start API server
+        working-directory: backend
+        run: python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/api/health >/dev/null; then
+              echo "server is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "server failed to start" >&2
+          exit 1
+
+      - name: Run full test suite
+        working-directory: backend
+        run: python tests/run_all.py

@@ -102,6 +102,8 @@ python -m venv .venv
 # source .venv/bin/activate
 
 pip install -r requirements.txt
+# optional: live integrations (Modbus / S7 / OPC UA) — API also runs without them
+pip install -r requirements-integrations.txt
 python run.py
 ```
 
@@ -128,16 +130,23 @@ API docs: http://127.0.0.1:8000/docs
 
 ### Configuration
 
-Copy `backend/.env.example` to `backend/.env` to override defaults:
+Copy `.env.example` (repo root) to `.env` to override defaults:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `ENVIRONMENT` | `development` | `production` disables docs/schema and arms the guards + hardening |
 | `DATABASE_URL` | `sqlite:///./academy.db` | Database connection string |
 | `SECRET_KEY` | `change-me-in-production` | JWT signing key — **change this in production** |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | Access token lifetime |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed browser origins |
+| `REQUIRE_HTTPS` | `false` | Reject plain-http clients (`426`) when behind TLS |
+| `RATE_LIMIT_AUTH_PER_MINUTE` | `60` | Per-IP login/refresh budget |
+| `RATE_LIMIT_GLOBAL_PER_MINUTE` | `600` | Per-IP budget for the remaining `/api/*` surface |
 | `DEVICE_LIMIT_PER_USER` | `3` | Max bound devices per user |
 | `MAX_DAYS_OFFLINE_SYNC` | `90` | Acceptable offline window |
 | `SEED_ON_STARTUP` | `true` | Seed demo data if the database is empty |
+| `INTEGRATIONS_ENABLED` / `MODBUS_ENABLED` / `SIMULATED_PLANT` | `true` | Integration layer on/off |
+| `S7_ENABLED` / `OPCUA_ENABLED` | `false` | S7 / WinCC links (see Integrations) |
 
 ---
 
@@ -251,6 +260,7 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\generator_test.py    # 20 project-generation + audit-trail checks
 .\.venv\Scripts\python.exe tests\frontend_static.py   # JS bracket balance + element-ID references
 .\.venv\Scripts\python.exe tests\integration_test.py  # 20 Modbus bridge + live-register checks
+.\.venv\Scripts\python.exe tests\security_test.py     # headers, CSP, CORS, rate-limit checks
 ```
 
 Or run all suites at once (checks the server is up first):
@@ -258,6 +268,68 @@ Or run all suites at once (checks the server is up first):
 ```bash
 .\.venv\Scripts\python.exe tests\run_all.py
 ```
+
+The same pipeline runs automatically in CI (`.github/workflows/ci.yml`) on every push to `main`.
+
+---
+
+## Production deployment
+
+The repo ships with a `Dockerfile`, `docker-compose.yml`, `.env.example` and CI
+so the platform deploys anywhere with a single command:
+
+```bash
+cp .env.example .env   # then edit with real values (see below)
+docker compose up -d --build
+```
+
+Required before exposing the service:
+
+1. **`ENVIRONMENT=production`** is set by the compose file — it disables `/docs`,
+   `/redoc` and the OpenAPI schema, and arms the bulk of the hardening.
+2. **`SECRET_KEY`** must be a real random value, or the app refuses to boot:
+   `python -c "import secrets; print(secrets.token_urlsafe(48))"`
+3. **`CORS_ORIGINS`** should list your frontend origin(s), not `*`.
+4. **`REQUIRE_HTTPS=1`** plus a TLS-terminating reverse proxy (nginx/Caddy/Traefik);
+   the app then rejects plain-http clients with `426 Upgrade Required`.
+5. Delete or disable the seeded demo accounts before opening it to real users.
+
+Persistent state:
+- SQLite DB → `./data/academy.db` (auto-created container volume)
+- Generated offline bundles → `./data/offline_packages/`
+
+CI smoke-tests every PR; the full 8-suite gate runs on `main`.
+
+## Security
+
+Baseline hardening ships in `backend/app/middleware.py` and is verified by
+`tests/security_test.py`:
+
+| Control | Detail |
+| --- | --- |
+| Response headers | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` |
+| CSP (SPA) | `default-src 'self'`, `script-src 'self'`, `frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'` |
+| Auth rate limiting | Per-IP sliding window on `/api/auth/*` (default 60/min) + global `/api/*` budget |
+| Login hardening | Generic 401 on bad credentials; accounts can be disabled; passwords ≥ 8 chars at registration |
+| Token lifecycle | Refresh tokens rotate on use and are rejected on reuse |
+| Production guard | Boot fails if `ENVIRONMENT=production` with the default `SECRET_KEY`; docs/traces disabled |
+| HTTPS enforcement | `REQUIRE_HTTPS=1` returns `426` for plain-http without a `X-Forwarded-Proto: https` |
+
+### Industrial safety interlocks
+
+The simulated plant implements a small but honest e-stop interlock:
+
+- An `estop` coil deglitched for **1.5 s** trips the failsafe.
+- Under failsafe the plant decays speed to zero, freezes level/flow, clears the
+  running lamp and halts part movement **regardless of what the external PLC
+  (FACTORY I/O) keeps commanding**, and logs `failsafe_enabled` to the event
+  queue.
+- `estop_asserted` / `failsafe_enabled` / `estop_released` events and the live
+  safety state (`GET /api/integrations`) are shown in Admin → Live integrations.
+
+> The failsafe is a teaching simulation bound to the plant simulator. A real
+> machine calls for a physical, certified safety relay chain — never rely on
+> software alone.
 
 ---
 

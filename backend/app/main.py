@@ -22,6 +22,7 @@ from app.api import (
 from app.config import get_settings
 from app.database import Base, engine
 from app.integrations.manager import IntegrationManager
+from app.middleware import HttpsEnforceMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from app.offline import ensure_bundles
 from app.seeder import seed_if_empty
 
@@ -29,6 +30,20 @@ settings = get_settings()
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT.parent / "frontend"
+
+
+def _guard_production_settings() -> None:
+    """Fail fast on deployment foot-guns instead of serving degraded."""
+    if settings.environment != "production":
+        return
+    if settings.secret_key == "change-me-in-production":
+        raise RuntimeError(
+            "SECRET_KEY is still the insecure default. Generate one and export it: "
+            "python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+        )
+
+
+_guard_production_settings()
 
 
 @asynccontextmanager
@@ -49,15 +64,22 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     lifespan=lifespan,
+    docs_url="/docs" if settings.environment != "production" else None,
+    redoc_url="/redoc" if settings.environment != "production" else None,
+    openapi_url="/openapi.json" if settings.environment != "production" else None,
 )
 
+cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware, settings=settings)
+app.add_middleware(HttpsEnforceMiddleware, settings=settings)
+app.add_middleware(SecurityHeadersMiddleware)
 
 for router in (
     auth_router,
@@ -77,7 +99,12 @@ for router in (
 
 @app.get(f"{settings.api_prefix}/health")
 def health():
-    return {"status": "ok", "app": settings.app_name, "version": settings.app_version}
+    return {
+        "status": "ok",
+        "app": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }
 
 
 if FRONTEND_DIR.exists():

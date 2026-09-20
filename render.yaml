@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: asapa
+    runtime: docker
+    repo: https://github.com/triller03/industrial-academy
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        value: sqlite:////app/data/academy.db
+      - key: OFFLINE_PACKAGES_DIR
+        value: /app/data/offline_packages
+      - key: SECRET_KEY
+        generateValue: true
+      - key: REQUIRE_HTTPS
+        value: "1"
+      - key: SEED_ON_STARTUP
+        value: "true"
+      - key: CORS_ORIGINS
+        value: ""
+      - key: MODBUS_PORT
+        value: "1502"
+      - key: RATE_LIMIT_AUTH_PER_MINUTE
+        value: "120"
+      - key: RATE_LIMIT_GLOBAL_PER_MINUTE
+        value: "6000"
+    disk:
+      name: academy-data
+      mountPath: /app/data
+      sizeGB: 1

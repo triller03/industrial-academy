@@ -10,6 +10,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=sqlite:////app/data/academy.db
+      - MODBUS_PORT=1502
     ports:
       - "8000:8000"
     volumes:

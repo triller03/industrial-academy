@@ -454,6 +454,34 @@ Persistent state:
 - SQLite DB → `./data/academy.db` (auto-created container volume)
 - Generated offline bundles → `./data/offline_packages/`
 
+### Hosted on Render (free)
+
+The repo ships a `render.yaml` blueprint, so the platform comes up online with
+a public HTTPS URL without managing your own server:
+
+1. Sign in to [render.com](https://render.com) (free tier is enough).
+2. **New → Blueprint**, select the `triller03/industrial-academy` repo, and
+   press *Apply*. Render builds the `Dockerfile`, attaches a 1 GB persistent
+   disk at `/app/data` for the SQLite DB + offline bundles, and auto-generates
+   `SECRET_KEY` (stored encrypted, never committed).
+3. The service auto-deploys on every push to `main`; the full 13-suite gate
+   runs first in GitHub Actions.
+
+Hardening the hosted instance is the same list as above — `ENVIRONMENT=production`
+and `REQUIRE_HTTPS=1` are already set, and secure-by-default choices are baked in
+(`CORS_ORIGINS` empty = same-origin SPA only, `MODBUS_PORT=1502` so the non-root
+container user can bind the simulated-plant bridge). After first deploy:
+
+- open `<your-app>.onrender.com/api/health` (should return `"status":"ok"`);
+- set `INTERFACE_ORIGIN=https://<your-app>.onrender.com` so published portfolio
+  links point at your real origin;
+- set `SEED_ON_STARTUP=0` once you no longer want the well-known demo accounts
+  (`demo@academy.local`, `admin@academy.local`) on a public instance.
+
+> Render's free tier sleeps the service after ~15 min of inactivity and wakes it
+> on the next request (first load after idle is slower). Use the `Starter` plan
+> for always-on.
+
 CI smoke-tests every PR; the full 13-suite gate runs on `main`.
 
 ## Security

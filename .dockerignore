@@ -9,6 +9,7 @@ SECURITY.md
 .vscode
 .vs
 *.md
+packaging/
 **/__pycache__
 **/*.pyc
 **/.venv
@@ -16,3 +17,6 @@ SECURITY.md
 backend/server.log
 backend/server.err.log
 backend/.env
+backend/offline_packages/
+dist/
+data/

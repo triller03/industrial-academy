@@ -16,6 +16,7 @@ jobs:
       DATABASE_URL: sqlite:///./ci.db
       RATE_LIMIT_AUTH_PER_MINUTE: "60"
       RATE_LIMIT_GLOBAL_PER_MINUTE: "2000"
+      MODBUS_PORT: "10502"  # > 1024: unprivileged runners cannot bind port 502
     steps:
       - uses: actions/checkout@v4
 

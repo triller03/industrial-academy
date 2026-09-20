@@ -2,13 +2,17 @@
 simulated-plant snapshot, a real Modbus client round-trip, admin controls and
 the audit trail. Requires the API server on 127.0.0.1:8000."""
 
+from __future__ import annotations
+
 import json
+import os
 import time
 import urllib.parse
 import urllib.request
 import urllib.error
 
 BASE = "http://127.0.0.1:8000"
+MODBUS_PORT = int(os.environ.get("MODBUS_PORT", "502"))  # CI uses 10502 (unprivileged)
 
 
 def _post(path, body=None, token=None, form=False):
@@ -57,7 +61,7 @@ def main():
     expect("command channel captured", "conveyor_run" in snap.get("actuators", {}))
 
     from pymodbus.client import ModbusTcpClient
-    client = ModbusTcpClient("127.0.0.1", port=502, timeout=5)
+    client = ModbusTcpClient("127.0.0.1", port=MODBUS_PORT, timeout=5)
     expect("modbus client connects", client.connect())
     got = client.write_coil(0, True)
     client.write_register(0, 500)  # speed setpoint = 5.00
@@ -78,7 +82,7 @@ def main():
     time.sleep(1)
     status = _get("/api/integrations", token=token)
     expect("modbus reports stopped", status["modbus"]["state"] == "stopped")
-    client = ModbusTcpClient("127.0.0.1", port=502, timeout=3)
+    client = ModbusTcpClient("127.0.0.1", port=MODBUS_PORT, timeout=3)
     expect("port closed after stop", client.connect() is False)
     client.close()
 

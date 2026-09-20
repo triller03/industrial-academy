@@ -1,7 +1,7 @@
-// ASAPA — Industrial Automation Training Platform — service worker
+// ASAP.A — Industrial Automation Training Platform — service worker
 // Caches the app shell so the UI loads with no network. API calls are never cached;
 // content for offline study comes from IndexedDB bundles instead.
-const CACHE = "academy-shell-v8";
+const CACHE = "academy-shell-v9";
 const SHELL = [
   "/",
   "/index.html",

@@ -6,7 +6,7 @@ gear to an IC chip. Emits:
 
     assets/app.ico                 multi-size Windows icon (16..256)
     assets/asapa_logo.png          512px square mark
-    assets/asapa_lockup.png        mark + "ASAPA" wordmark (docs / marketing)
+    assets/asapa_lockup.png        mark + "ASAP.A" wordmark (docs / marketing)
     frontend/logo.png              128px mark (UI brand block)
     frontend/favicon.ico           browser tab icon
 """
@@ -28,8 +28,9 @@ S = 512
 C = S // 2
 
 BLUE = (25, 68, 130, 255)      # deep industrial blue
-DARK = (10, 34, 70, 255)       # near-navy (glyph / wordmark)
-AMBER = (245, 166, 35, 255)    # signal amber
+DARK = (11, 21, 48, 255)       # brand navy (#0B1530 — glyph / wordmark)
+AMBER = (245, 166, 35, 255)    # signal amber (legacy monogram hub)
+ACCENT = (47, 123, 255, 255)   # ASAP.A blue (#2F7BFF — ".A", swoosh, bar)
 LIGHT = (146, 190, 240, 255)   # light blue circuit track
 CLEAR = (0, 0, 0, 0)
 
@@ -141,10 +142,11 @@ def make_lockup(mark: Image.Image | None = None) -> Image.Image:
     d = ImageDraw.Draw(img)
 
     word = _font(58, bold=True)
-    d.text((152, 58), "ASAPA", font=word, fill=DARK, anchor="lm")
+    d.text((152, 58), "ASAP", font=word, fill=DARK, anchor="lm")
+    d.text((152 + word.getlength("ASAP") + 2, 58), ".A", font=word, fill=ACCENT, anchor="lm")
 
     bar_y = 84
-    d.rectangle([152, bar_y, 208, bar_y + 5], fill=AMBER)
+    d.rectangle([152, bar_y, 208, bar_y + 5], fill=ACCENT)
 
     tagline = "INDUSTRIAL AUTOMATION TRAINING PLATFORM"
     f = _font(21, bold=False)

@@ -1,4 +1,4 @@
-"""ASAPA - Industrial Automation Training Platform (Windows desktop launcher).
+"""ASAP.A - Industrial Automation Training Platform (Windows desktop launcher).
 
 Entry point for the PyInstaller bundle (see build-desktop.ps1). Starts the
 FastAPI server on loopback, serves the bundled frontend, and hosts the UI in a
@@ -64,7 +64,7 @@ def info(message: str) -> None:
 
 
 CONFIG_TEMPLATE = """\
-# ASAPA desktop AI mentor settings.
+# ASAP.A desktop AI mentor settings.
 # This app keeps working fully offline with the built-in Socratic engine.
 # To enable the live LLM mentor over the internet, fill in a provider + key:
 #   AI_PROVIDER=openrouter            # openai | openrouter | anthropic | gemini | ollama
@@ -232,7 +232,7 @@ def _main() -> int:
     import webview
 
     webview.create_window(
-        "ASAPA - Industrial Automation Training Platform",
+        "ASAP.A - Industrial Automation Training Platform",
         url,
         width=1280,
         height=840,

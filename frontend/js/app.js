@@ -1,4 +1,4 @@
-// ASAPA — front-end client
+// ASAP.A — front-end client
 const API = "/api";
 
 const state = {

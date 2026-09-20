@@ -25,7 +25,7 @@ PROVIDER_DEFAULTS = {
     "gemini": ("https://generativelanguage.googleapis.com", "gemini-2.0-flash"),
 }
 
-OPENROUTER_TITLE = "ASAPA - Industrial Automation Training Platform"
+OPENROUTER_TITLE = "ASAP.A - Industrial Automation Training Platform"
 
 
 class LLMError(Exception):

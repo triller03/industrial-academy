@@ -1,7 +1,7 @@
-; ASAPA - Windows desktop installer (Mufasa Corp)
+; ASAP.A - Windows desktop installer (Mufasa Corp)
 ; Built by packaging/desktop/build-desktop.ps1 (Inno Setup 6, per-user install).
 
-#define MyAppName "ASAPA"
+#define MyAppName "ASAP.A"
 #define MyAppVersion "1.0.0"
 #define MyAppExeName "IndustrialAcademy.exe"
 #define MyAppPublisher "Mufasa Corp"
@@ -16,7 +16,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 SetupIconFile=assets\app.ico
 OutputDir=dist-desktop
-OutputBaseFilename=ASAPA-Setup-{#MyAppVersion}
+OutputBaseFilename=ASAP.A-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -40,6 +40,9 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Start {#MyAppName} now"; Flags:
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
+
+
+
 
 
 

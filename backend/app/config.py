@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "ASAPA - Industrial Automation Training Platform"
+    app_name: str = "ASAP.A - Industrial Automation Training Platform"
     app_version: str = "1.0.0"
     api_prefix: str = "/api"
 

@@ -90,7 +90,7 @@ PORTFOLIO_TEMPLATE = """<!DOCTYPE html>
 </header>
 <main>
   <div class="card">
-    <span class="badge">ASAPA Project Work Sample</span>
+    <span class="badge">ASAP.A Project Work Sample</span>
     <div class="owner">By @@OWNER@@</div>
     <pre>@@SUMMARY@@</pre>
     <div class="ref">Entry ref: @@REF@@ · Verified on @@ORIGIN@@</div>

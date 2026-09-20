@@ -120,7 +120,7 @@ Set-Content -LiteralPath $IssFile -Value $IssText -Encoding ASCII
 
 Write-Host "Compiling installer..."
 & $Iscc $IssFile
-$SetupExe = Join-Path $DesktopDir ("dist-desktop\ASAPA-Setup-" + $Version + ".exe")
+$SetupExe = Join-Path $DesktopDir ("dist-desktop\ASAP.A-Setup-" + $Version + ".exe")
 if (-not (Test-Path -LiteralPath $SetupExe)) {
     throw "ISCC did not produce $SetupExe"
 }

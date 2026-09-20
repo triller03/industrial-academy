@@ -6,6 +6,7 @@ from app.core.security import get_current_user
 from app.database import get_db
 from app.fault import evaluator
 from app.models import FaultScenario, User
+from app.plans import enforce_fault_budget
 from app.schemas import FaultDiagnoseIn, FaultDiagnoseOut
 
 router = APIRouter(prefix="/fault", tags=["fault"])
@@ -20,6 +21,11 @@ def diagnose(
     scenario = db.query(FaultScenario).filter(FaultScenario.id == body.fault_id).first()
     if not scenario:
         raise HTTPException(status_code=404, detail="Fault scenario not found")
+
+    try:
+        enforce_fault_budget(db, current)
+    except PermissionError as exc:
+        raise HTTPException(status_code=402, detail=str(exc))
 
     performed = [c.check_id for c in body.checks if c.performed]
     result = evaluator.evaluate(

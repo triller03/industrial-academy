@@ -35,6 +35,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     institution: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    plan: Mapped[str] = mapped_column(String(32), default="sandbox", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     devices: Mapped[list["Device"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -43,6 +44,7 @@ class User(Base):
     certificates: Mapped[list["Certificate"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     portfolio: Mapped[list["PortfolioEntry"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    licenses: Mapped[list["License"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):
@@ -72,6 +74,30 @@ class Device(Base):
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped["User"] = relationship(back_populates="devices")
+
+
+class License(Base):
+    """Plan capacity purchased through a gateway (Stripe / Paynow / web / test checkout).
+
+    One row per paid order. Activation binds the license to a hardware id (HWID) and
+    lifts the owning <User>.plan until expiry. Pending rows await payment confirmation.
+    """
+
+    __tablename__ = "licenses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    license_key: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    plan: Mapped[str] = mapped_column(String(32), default="student_pro")
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | active | revoked
+    source: Mapped[str] = mapped_column(String(32), default="web")  # stripe | paynow | web | test
+    price_usd: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    hwid: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="licenses")
 
 
 class Project(Base):
@@ -222,6 +248,8 @@ class PortfolioEntry(Base):
     entry_ref: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     title: Mapped[str] = mapped_column(String(255))
     summary: Mapped[Text] = mapped_column(Text, default="")
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     user: Mapped["User"] = relationship(back_populates="portfolio")

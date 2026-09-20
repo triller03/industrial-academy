@@ -1,4 +1,4 @@
-<# setup.ps1 - offline installer for the AI-Powered Industrial Academy.
+<# setup.ps1 - offline installer for ASAPA (Industrial Automation Training Platform).
 
 Run from the mounted ISO / unpacked media (setup.bat wraps this). Copies the
 application to a writable location, provisions a Python virtual environment
@@ -8,6 +8,8 @@ the initial database + curriculum + offline bundles, and creates shortcuts.
 
 Options:
   -InstallDir <path>   Destination folder. Default: %LOCALAPPDATA%\IndustrialAcademy
+  -EnableFirewall      Allow inbound TCP traffic on the server port (Admin required)
+  -StartAtBoot         Register ASAPA to start automatically at logon
   -Port <int>          Server port. Default 8000
   -EnableFirewall      Add an inbound firewall rule for the server port (admin)
   -StartAtBoot         Register a scheduled task that starts the server at logon
@@ -233,20 +235,20 @@ function New-Shortcut($name, $target) {
     $lnk.Save()
 }
 $desktop = [Environment]::GetFolderPath("Desktop")
-$startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Industrial Academy"
+$startMenu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ASAPA"
 $startBat = Join-Path $InstallDir "start-academy.bat"
 $stopBat = Join-Path $InstallDir "stop-academy.bat"
 New-Item -ItemType Directory -Path $startMenu -Force | Out-Null
-New-Shortcut (Join-Path $desktop "Industrial Academy.lnk") $startBat
-New-Shortcut (Join-Path $startMenu "Start Industrial Academy.lnk") $startBat
-New-Shortcut (Join-Path $startMenu "Stop Industrial Academy.lnk") $stopBat
+New-Shortcut (Join-Path $desktop "ASAPA.lnk") $startBat
+New-Shortcut (Join-Path $startMenu "Start ASAPA.lnk") $startBat
+New-Shortcut (Join-Path $startMenu "Stop ASAPA.lnk") $stopBat
 Write-Step "Shortcuts created (Desktop + Start Menu)" $true
 
 # --- firewall ---------------------------------------------------------------
 if ($EnableFirewall) {
     try {
-        netsh advfirewall firewall delete rule name="Industrial Academy (TCP $Port)" | Out-Null
-        netsh advfirewall firewall add rule name="Industrial Academy (TCP $Port)" dir=in action=allow protocol=TCP localport=$Port | Out-Null
+        netsh advfirewall firewall delete rule name="ASAPA (TCP $Port)" | Out-Null
+        netsh advfirewall firewall add rule name="ASAPA (TCP $Port)" dir=in action=allow protocol=TCP localport=$Port | Out-Null
         if ($LASTEXITCODE -eq 0) {
             Write-Step "Inbound firewall rule added (port $Port)" $true
         } else {
@@ -262,7 +264,7 @@ if ($StartAtBoot) {
     $action = New-ScheduledTaskAction -Execute $startBat
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     try {
-        Register-ScheduledTask -TaskName "Industrial Academy" -Action $action -Trigger $trigger -Description "Starts the Industrial Academy server at logon." -Force | Out-Null
+        Register-ScheduledTask -TaskName "ASAPA" -Action $action -Trigger $trigger -Description "Starts the ASAPA server at logon." -Force | Out-Null
         Write-Step "Scheduled task registered (start at logon)" $true
     } catch {
         $script:warnings.Add("Could not register scheduled task: $($_.Exception.Message)")
@@ -293,10 +295,10 @@ if ($PassThru) {
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  AI-Powered Industrial Academy  v$Version - setup complete" -ForegroundColor Cyan
+Write-Host "  ASAPA - Industrial Automation Training Platform  v$Version - setup complete" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host "  Installed to:  $InstallDir"
-Write-Host "  Launch:        Desktop / Start Menu  ->  Industrial Academy"
+Write-Host "  Launch:        Desktop / Start Menu  ->  ASAPA"
 Write-Host "  Web UI:        http://127.0.0.1:$Port"
 Write-Host ""
 Write-Host "  Demo account:  demo@academy.local / demo1234"

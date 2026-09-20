@@ -7,6 +7,8 @@ from app.core.security import get_current_user
 from app.database import get_db
 from app.models import FaultScenario, Project, ProjectSection, User, UserProgress
 from app.offline import ensure_bundles
+from app.plans import can_generate_projects, can_schematic_viewer
+from app.schematics import build_schematic
 from app.schemas import (
     FaultDetailOut,
     FaultScenarioListItem,
@@ -16,6 +18,7 @@ from app.schemas import (
     ProjectProgressOut,
     ProgressOut,
     ProjectSectionOut,
+    SchematicOut,
 )
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -27,8 +30,11 @@ def generate_project(
     db: Session = Depends(get_db),
     current: User = Depends(get_current_user),
 ):
-    if not current.is_admin:
-        raise HTTPException(status_code=403, detail="Administrator privileges required")
+    if not can_generate_projects(current):
+        raise HTTPException(
+            status_code=403,
+            detail="Project generation is a Student Pro feature. Upgrade to generate your own projects from templates.",
+        )
     if body.industry not in INDUSTRY_TEMPLATES:
         raise HTTPException(
             status_code=422,
@@ -169,3 +175,21 @@ def project_progress(
         percent=(completed / total * 100) if total else 0.0,
         sections=sections,
     )
+
+
+@router.get("/{project_id}/schematic", response_model=SchematicOut)
+def project_schematic(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current: User = Depends(get_current_user),
+):
+    """FRS & P&ID structured viewer (Student Pro+)."""
+    if not can_schematic_viewer(current):
+        raise HTTPException(
+            status_code=403,
+            detail="The FRS & P&ID viewer is a Student Pro feature. Upgrade to view instrument loops, I/O and tags side-by-side.",
+        )
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return build_schematic(db, project)

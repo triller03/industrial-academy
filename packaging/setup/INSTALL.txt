@@ -1,7 +1,7 @@
-# AI-Powered Industrial Academy — Offline Installation
+# ASAPA — Industrial Automation Training Platform — Offline Installation
 
-This ISO contains a complete, self-contained copy of the AI-Powered Industrial
-Academy. No internet connection is needed to install or run it: all Python
+This ISO contains a complete, self-contained copy of ASAPA (formerly the
+AI-Powered Industrial Academy). No internet connection is needed to install or
 packages are bundled as wheels, and Python 3.12 itself is bundled. The
 application boots with a built-in curriculum and works fully offline.
 
@@ -40,10 +40,10 @@ Quick setup:  double-click **setup.bat** and follow the prompts.
 
 ## 2. Run
 
-- Double-click **Start Industrial Academy** (Desktop or Start Menu shortcut).
+- Double-click **Start ASAPA** (Desktop or Start Menu shortcut).
 - A console window opens and the server starts on http://127.0.0.1:8000.
   Your browser opens automatically (if a browser is installed).
-- To stop it: close the console window, or double-click **Stop Industrial Academy**.
+- To stop it: close the console window, or double-click **Stop ASAPA**.
 
 If your PC is on a lab network you can connect from other machines with
 `http://<this-pc-ip>:8000` (set `-EnableFirewall` and use a fixed IP).
@@ -90,4 +90,4 @@ installed match the build. See the project README for details.
 
 ---
 
-AI-Powered Industrial Academy v1.0.0 — offline installer media.
+ASAPA v1.0.0 — offline installer media.

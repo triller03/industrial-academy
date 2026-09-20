@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.database import get_db
 from app.models import AIConversation, FaultScenario, ProjectSection, User
 from app.mentor import MentorRequest, mentor_engine
+from app.plans import can_full_solutions
 from app.schemas import MentorChatIn, MentorChatOut
 
 router = APIRouter(prefix="/mentor", tags=["mentor"])
@@ -82,6 +83,12 @@ def solution(
     fault = None
     if body.fault_id:
         fault = db.query(FaultScenario).filter(FaultScenario.id == body.fault_id).first()
+
+    if not can_full_solutions(current):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Full solutions are a Student Pro feature. Upgrade to unlock the step-by-step solution walkthrough.",
+        )
 
     topic = _topic_for(body.section_key, fault)
     response = mentor_engine.solution(body.message, topic, body.history[0]["level"] if body.history else 4)

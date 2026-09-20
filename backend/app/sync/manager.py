@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.fault import evaluator
 from app.models import Device, FaultScenario, User, UserProgress
+from app.plans import fault_attempt_daily_budget, today_fault_attempts
 
 SYNC_WINDOW_SECONDS = 5 * 60  # treat updates within this delta as concurrent
 
@@ -139,15 +140,28 @@ class SyncManager:
         applied: list[dict] = []
         conflicts: list[dict] = []
 
+        budget = fault_attempt_daily_budget(user)
+        synced_attempts = 0
+
         for change in changes:
             entity = change.get("entity")
             if entity == "fault_attempt":
+                if budget is not None and today_fault_attempts(db, user.id) + synced_attempts >= budget:
+                    conflicts.append(
+                        {
+                            "entity": entity,
+                            "reason": "Free Sandbox daily Fault Lab limit reached",
+                            "payload": change,
+                        }
+                    )
+                    continue
                 graded = self._grade_fault_attempt(db, user.id, change.get("payload", {}))
                 if graded is None:
                     conflicts.append(
                         {"entity": entity, "reason": "unknown fault_id", "payload": change}
                     )
                 else:
+                    synced_attempts += 1
                     applied.append(graded)
                 continue
 

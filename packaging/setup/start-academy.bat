@@ -1,5 +1,5 @@
 @echo off
-rem Start the Industrial Academy server (http://127.0.0.1:8000).
+rem Start the ASAPA server (http://127.0.0.1:8000).
 setlocal
 cd /d "%~dp0app\backend" || exit /b 1
 if not exist ".venv\Scripts\python.exe" (
@@ -8,7 +8,7 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 echo.
-echo   AI-Powered Industrial Academy - starting...
+echo   ASAPA - Industrial Automation Training Platform - starting...
 echo   Web UI:  http://127.0.0.1:8000
 echo   Close this window (or run stop-academy) to stop the server.
 echo.

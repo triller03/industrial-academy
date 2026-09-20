@@ -1,15 +1,22 @@
-# AI-Powered Industrial Academy
+# ASAPA — Industrial Automation Training Platform
 
-An offline-capable learning platform for industrial automation engineering. Learners work through a
-full 17-section engineering project lifecycle, guided by a Socratic AI mentor, then prove their
-competence by diagnosing injected faults. Progress, certificates, and portfolio entries are issued
-by the platform.
+![ASAPA](packaging/desktop/assets/asapa_lockup.png)
 
-The platform ships an authored learning path — the **Automation Technician
+*ASAPA (ASAP Automation) — formerly the AI-Powered Industrial Academy — is an*
+*offline-capable learning platform for industrial automation engineering.*
+*"Don't teach software buttons. Teach the complete industrial engineering lifecycle."*
+
+Learners work through a full 17-section engineering project lifecycle, guided by a Socratic AI
+mentor, then prove their competence by diagnosing injected faults. Progress, certificates, and
+portfolio entries are issued by the platform.
+
+The platform ships authored learning paths — the **Automation Technician
 Foundations** curriculum (4 projects: motor starter, instrument loop, conveyor
 sorter cell, chlorine dosing skid) building up to the flagship **500 m³/h
-municipal water treatment plant**. See [`CURRICULUM.md`](CURRICULUM.md) for the
-full track, and Admin → *Learning content* for the sync action.
+municipal water treatment plant**, plus the **Mining & Minerals** track
+(`mining-primary-crushing`, a 17-section primary crushing plant with 4 graded
+faults). See [`CURRICULUM.md`](CURRICULUM.md) for the full tracks, and Admin →
+*Learning content* for the sync action.
 
 ---
 
@@ -44,6 +51,18 @@ full track, and Admin → *Learning content* for the sync action.
 - **Audit trail** — user actions (section completions, credential issuance, fault attempts, syncs,
   project generation, bundle rebuilds) are recorded in `activity_logs` and readable via `GET /activity`.
 - **Single-page frontend** — vanilla HTML/CSS/JS served by FastAPI. No build step, works offline.
+- **Tiered plans & HWID licensing** — Sandbox (free, 5 fault diagnoses/day) · Student Pro ·
+  Professional · Institutional. 30-day full-access trial, per-device HWID binding (3 devices),
+  signed offline license tokens, and a local checkout gateway by default with optional Stripe /
+  Paynow (Zimbabwe) webhooks. Plan gates: project generation (Student Pro+), FRS/P&ID schematic
+  viewer (Student Pro+), public portfolio publishing (Professional+), TIA bridge (Professional+).
+- **FRS/P&ID structured viewer** — each project's `p_and_id` section is parsed into a structured
+  view (instruments, I/O map, tag register) served behind the `can_schematic_viewer` gate.
+- **Public portfolio** — completed projects can be published to a shareable public URL
+  (`/portfolio/{entry_ref}`), gated to Professional+ plans.
+- **TIA Openness bridge** — `probe`, rule-based SCL pre-compile validation (`validate-scl`) and IEC
+  61131-3 tag CSV import validation, exposed under `/api/integrations/tia/*`. Hardware dependent:
+  without a licensed TIA host the probe reports *not available* and validators run offline.
 - **Live integrations** — a Modbus TCP server bridges FACTORY I/O into the app (port 502), with
   optional Siemens S7 (snap7) and WinCC/OPC UA links. Status + live registers under **Admin → Live
   integrations**; see *Integrations* below.
@@ -57,22 +76,25 @@ industrial-academy/
 ├── backend/
 │   ├── app/
 │   │   ├── activity.py    # audit-trail helper (activity_logs)
-│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity, integrations, stats
-│   │   ├── content/      # project generator (17-section lifecycle, industry templates) + admin service
-│   │   ├── core/         # security: password hashing, JWT access/refresh tokens
+│   │   ├── api/          # auth, projects, mentor, fault, progress, devices, sync, credentials, activity, integrations, stats, billing, licensing
+│   │   ├── content/      # project generator (17-section lifecycle, industry templates), mining_track + admin service
+│   │   ├── core/         # security: password hashing, JWT access/refresh tokens, licensing tokens
 │   │   ├── fault/        # decision trees + diagnosis evaluator + check palette
 │   │   ├── integrations/ # Modbus TCP (FACTORY I/O), snap7 (S7), OPC UA (WinCC) links + manager
 │   │   ├── mentor/       # Socratic mentor engine (safety / guided / socratic)
-│   │   ├── models/       # 14 SQLAlchemy tables
+│   │   ├── models/       # SQLAlchemy tables
 │   │   ├── offline/      # content-addressed bundle builder
 │   │   ├── schemas/      # Pydantic request/response models
+│   │   ├── schematics.py # FRS/P&ID structured viewer parser
 │   │   ├── sync/         # offline sync manager + device binding
+│   │   ├── tia/          # TIA Openness bridge: probe, SCL validator, tag-CSV importer
+│   │   ├── plans.py      # tier definitions, gates, daily-budget + trial helpers
 │   │   ├── config.py
 │   │   ├── database.py
 │   │   ├── init_db.py    # first-run init: schema, seed, curriculum, offline bundles
 │   │   ├── seeder.py     # seed data: water treatment plant, 17 sections, 8 faults
 │   │   └── main.py       # FastAPI app, routers, static frontend mount
-│   ├── tests/            # integration + static checks (see Testing)
+│   ├── tests/            # 13 integration + static suites (see Testing)
 │   ├── requirements.txt
 │   ├── requirements-integrations.txt   # optional hardware-link dependencies
 │   └── run.py
@@ -122,14 +144,14 @@ or run the API from the integrated terminal: `Set-Location backend` then
 
 Open **http://127.0.0.1:8000**.
 
-Demo account (seeded on first startup):
+Demo accounts (seeded on first startup):
 
 ```
 email:    demo@academy.local
-password: demo1234        # regular student
+password: demo1234        # professional plan (full features: portfolio, TIA, schematic)
 
 email:    admin@academy.local
-password: admin1234       # admin — can generate projects & view the audit trail
+password: admin1234       # admin + institutional plan — can generate projects & view the audit trail
 ```
 
 > The seeded accounts are for local development only; remove them before production.
@@ -138,7 +160,8 @@ API docs: http://127.0.0.1:8000/docs
 
 ### Configuration
 
-Copy `.env.example` (repo root) to `.env` to override defaults:
+Copy `backend/.env.example` to `backend/.env` to override defaults (a repo-root copy also exists for
+the container build):
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -152,6 +175,13 @@ Copy `.env.example` (repo root) to `.env` to override defaults:
 | `RATE_LIMIT_GLOBAL_PER_MINUTE` | `600` | Per-IP budget for the remaining `/api/*` surface |
 | `DEVICE_LIMIT_PER_USER` | `3` | Max bound devices per user |
 | `MAX_DAYS_OFFLINE_SYNC` | `90` | Acceptable offline window |
+| `TRIAL_GRACE_DAYS` | `30` | Full-access trial days for fresh users |
+| `MAX_FREE_FAULT_ATTEMPTS_PER_DAY` | `5` | Sandbox cap on online fault diagnoses per day |
+| `LICENSE_LENGTH_DAYS` | `365` | Paid license duration once activated |
+| `INTERFACE_ORIGIN` | `` | Public origin used to build shareable portfolio URLs |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_MAP` | `` | Stripe billing (empty = local test gateway) |
+| `PAYNOW_INTEGRATION_ID` / `PAYNOW_API_KEY` / `PAYNOW_RESULT_URL` | `` | Paynow billing (Zimbabwe) |
+| `TIA_OPENNESS_ENABLED` | `false` | Hardware TIA Openness host on / off (graceful degradation) |
 | `SEED_ON_STARTUP` | `true` | Seed demo data if the database is empty |
 | `INTEGRATIONS_ENABLED` / `MODBUS_ENABLED` / `SIMULATED_PLANT` | `true` | Integration layer on/off |
 | `S7_ENABLED` / `OPCUA_ENABLED` | `false` | S7 / WinCC links (see Integrations) |
@@ -198,16 +228,17 @@ and the recorded installer version. Rebuild the media any time the app or dated 
 
 ## Windows desktop app + installer
 
-For a native, browser-less experience the platform is also packaged as a **Windows desktop
+For a native, browser-less experience the platform is also packaged as the **ASAPA Windows desktop
 application** (`IndustrialAcademy.exe`): it starts the API on a random loopback port and hosts the
 UI in a WebView2 window (no console, no separate browser tab). A per-user **Inno Setup installer**
 wraps the whole bundle.
 
 The desktop build ships without the optional hardware-integration libraries, so the admin
 "Live integrations" view reports them as *disabled* and the app never binds the privileged Modbus
-port 502. All user data (SQLite database, curriculum, offline bundles) is stored in
-`%LOCALAPPDATA%\IndustrialAcademy`, outside the install directory, and survives re-installs and
-uninstalls.
+port 502. The app icon and installer icon use the ASAPA mark (assets generated by
+`packaging/desktop/assets/make_icon.py`). All user data (SQLite database, curriculum, offline
+bundles) is stored in `%LOCALAPPDATA%\IndustrialAcademy`, outside the install directory, and
+survives re-installs and uninstalls.
 
 ### Build the desktop bundle + installer
 
@@ -222,8 +253,8 @@ This produces:
 
 - `packaging/desktop/dist-desktop/IndustrialAcademy/` — the standalone app folder (run
   `IndustrialAcademy.exe` directly)
-- `packaging/desktop/dist-desktop/IndustrialAcademy-Setup-1.0.0.exe` (~23 MB, per-user installer
-  → Start Menu + Desktop shortcuts, uninstaller included, no admin required)
+- `packaging/desktop/dist-desktop/ASAPA-Setup-1.0.0.exe` (~23 MB, per-user installer → Start Menu +
+  Desktop shortcuts, uninstaller included, no admin required)
 
 Options: `-SkipVenv` (reuse the `.build-venv`), `-SkipInstaller` (bundle only). `ISCC_PATH` can
 point at an existing Inno Setup 6 compiler instead of the portable copy the script installs.
@@ -249,20 +280,28 @@ All endpoints are prefixed with `/api`.
 | Area | Endpoints |
 | --- | --- |
 | Auth | `POST /auth/register` · `POST /auth/token` · `POST /auth/refresh` · `GET /auth/me` |
-| Projects | `GET /projects` · `GET /projects/{id}` · `GET /projects/{id}/sections/{key}` · `GET /projects/{id}/progress` · `POST /projects/generate` (admin) |
+| Projects | `GET /projects` · `GET /projects/{id}` · `GET /projects/{id}/sections/{key}` · `GET /projects/{id}/progress` · `GET /projects/{id}/schematic` (Student Pro+) · `POST /projects/generate` (Student Pro+) |
+| Curriculum | `GET /curriculum` (foundations only) · `GET /curriculum/tracks` · `GET /curriculum/mining` · `GET /curriculum/projects/{slug}` · `POST /curriculum/install` (admin) |
 | Faults | `GET /projects/{id}/faults` · `GET /projects/{id}/faults/{fault_id}` · `POST /fault/diagnose` |
 | Mentor | `POST /mentor/chat` · `POST /mentor/solution` |
 | Progress | `GET /progress` · `POST /progress` |
 | Devices | `POST /devices/authorize` · `GET /devices` · `POST /devices/revoke` · `POST /devices/{id}/touch` |
 | Sync | `POST /sync` |
 | Offline | `GET /offline/manifest` · `GET /projects/{id}/offline-bundle` · `POST /offline/rebuild` (admin) |
-| Credentials | `GET /credentials/certificates` · `GET /credentials/portfolio` · `GET /credentials/certificates/verify/{token}` |
+| Credentials | `GET /credentials/certificates` · `GET /credentials/portfolio` · `GET /credentials/certificates/verify/{token}` · `POST /credentials/portfolio/{entry_ref}/publish` · `POST /credentials/portfolio/{entry_ref}/unpublish` (Professional+) |
+| Billing | `GET /billing/plans` · `GET /billing/status` · `GET /billing/licenses` · `POST /billing/checkout` · `POST /billing/activate` · `POST /billing/webhook` |
+| Licensing | `GET /licensing/status` · `POST /licensing/register-hwid` · `POST /licensing/verify` |
+| Integrations | `GET /integrations` · `POST /integrations/start\|stop\|snapshot` · **TIA**: `POST /integrations/tia/probe` · `POST /integrations/tia/validate-scl` · `POST /integrations/tia/import-tags` · `GET /integrations/tia/template.csv` |
 | Activity | `GET /activity` (admin sees all users) |
 | Stats | `GET /stats/learner` (dashboard rollups, streaks, 14-day activity) · `GET /stats/admin` (admin platform analytics) |
+| Portfolio | `GET /portfolio/{entry_ref}` (public HTML share page) |
 | Health | `GET /health` |
 
 The fault-detail endpoint deliberately omits the expected checks and correct diagnosis; those are
 only revealed by `POST /fault/diagnose` after a learner submits an attempt.
+
+Plan gates are enforced with `403` (upgrade detail) for Sandbox users and `402` (budget exhausted)
+when the daily fault-diagnosis cap is reached; see `app/plans.py`.
 
 ---
 
@@ -274,8 +313,12 @@ only revealed by `POST /fault/diagnose` after a learner submits an attempt.
 
 ## Seeded fault scenarios
 
-`dosing-pump-overrun` · `filter-bed-blinding` · `magflow-failed-low` · `level-loop-open` ·
-`chlorine-airlock` · `pump-permissive-blocked` · `backwash-valve-feedback` · `comms-loss-scada`
+Water treatment: `dosing-pump-overrun` · `filter-bed-blinding` · `magflow-failed-low` ·
+`level-loop-open` · `chlorine-airlock` · `pump-permissive-blocked` · `backwash-valve-feedback` ·
+`comms-loss-scada`
+
+Mining (Minerals primary crushing): `belt-misalignment-at-tonnage` · `crusher-feed-choke` ·
+`tramp-metal-false-trip` · `feeder-never-commands`
 
 ---
 
@@ -339,6 +382,21 @@ DB1: byte 0 bits 0–3 = `start/running/estop/reset`, INTs at bytes 2 = `level`,
 `INTEGRATION_OPCUA_NODES=ns=2;s=Tag1,ns=2;s=Tag2`. The link polls the listed node ids and shows live
 values in the admin view.
 
+### TIA Openness bridge (Professional+)
+
+`TIA_OPENNESS_ENABLED=1`, `TIA_OPENNESS_HOST=127.0.0.1`, `TIA_OPENNESS_PORT=8600`. The bridge exposes:
+
+- `POST /api/integrations/tia/probe` — version/host availability probe.
+- `POST /api/integrations/tia/validate-scl` — pre-compile SCL static validation (structured control
+  balance, block framing, operand/assignability rules) with a 0–100 score.
+- `POST /api/integrations/tia/import-tags` — IEC 61131-3 tag CSV validation against the I/Q/M/DB
+  address contract.
+- `GET /api/integrations/tia/template.csv` — the expected tag-import template.
+
+Without a licensed TIA Portal host on the machine the probe reports *not available* and both
+validators run rule-based offline (no degradation of the rest of the platform). All three endpoints
+require Professional+ (admin always passes).
+
 ---
 
 ## Testing
@@ -356,6 +414,9 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\curriculum_test.py    # 35 authored-curriculum content checks
 .\.venv\Scripts\python.exe tests\stats_test.py         # 33 learner + admin analytics checks
 .\.venv\Scripts\python.exe tests\security_test.py     # headers, CSP, CORS, rate-limit checks
+.\.venv\Scripts\python.exe tests\billing_test.py      # 24 plans/checkout/webhook/license checks
+.\.venv\Scripts\python.exe tests\licensing_test.py    # 18 HWID + offline-token checks
+.\.venv\Scripts\python.exe tests\blueprint_test.py     # 29 tracks/mining/schematic/TIA/portfolio checks
 ```
 
 Or run all suites at once (checks the server is up first):
@@ -393,7 +454,7 @@ Persistent state:
 - SQLite DB → `./data/academy.db` (auto-created container volume)
 - Generated offline bundles → `./data/offline_packages/`
 
-CI smoke-tests every PR; the full 10-suite gate runs on `main`.
+CI smoke-tests every PR; the full 13-suite gate runs on `main`.
 
 ## Security
 

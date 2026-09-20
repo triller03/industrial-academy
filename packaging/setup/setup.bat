@@ -1,8 +1,8 @@
 @echo off
 setlocal
-title Industrial Academy - Setup
+title ASAPA - Setup
 echo ============================================================
-echo   AI-Powered Industrial Academy - Offline Setup
+echo   ASAPA - Industrial Automation Training Platform - Offline Setup
 echo ============================================================
 echo.
 set "SCRIPT_DIR=%~dp0"
@@ -13,7 +13,7 @@ set "EXITCODE=%ERRORLEVEL%"
 echo.
 echo ============================================================
 if "%EXITCODE%"=="0" (
-  echo   Setup completed. Look for "Industrial Academy" on your
+  echo   Setup completed. Look for "ASAPA" on your
   echo   Desktop / Start Menu to launch the server.
 ) else (
   echo   Setup finished with warnings or errors (exit %EXITCODE%).

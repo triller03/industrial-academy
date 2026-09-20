@@ -1,15 +1,19 @@
-# Automation Technician Foundations — Curriculum
+# ASAPA — Curriculum & Learning Tracks
 
-The first authored curriculum for the AI-Powered Industrial Academy: four projects
-that take a learner from "I can push a button" to "I can own a dosing skid", each a
-complete 17-section engineering package with graded fault scenarios.
+Two authored tracks install into the platform: the **Automation Technician
+Foundations** curriculum (four water/manufacturing projects) and the
+**Mining & Minerals** track (flagship primary-crushing plant). The curriculum
+installs itself on first boot (idempotent — existing databases only gain the
+missing projects), and its offline bundles are built automatically. An admin can
+re-sync at any time from **Admin → Learning content → Sync curriculum**.
 
-The curriculum installs itself into the platform. On first boot it seeds four
-projects (idempotent — existing databases only gain the missing ones), and its
-offline bundles are built automatically. An admin can re-sync at any time from
-**Admin → Learning content → Sync curriculum**.
+## Track 1 — Automation Technician Foundations
 
-## Recommended order
+Four projects that take a learner from "I can push a button" to "I can own a
+dosing skid", each a complete 17-section engineering package with graded fault
+scenarios.
+
+## Recommended order (Foundations)
 
 | # | Project | Level | Industry | Hours | You will learn |
 | --- | --- | --- | --- | --- | --- |
@@ -20,6 +24,37 @@ offline bundles are built automatically. An admin can re-sync at any time from
 
 After project 4, a learner is ready for the seeded **500 m³/h Water Plant**
 (advanced) and the admin-generated industry variants.
+
+## Track 2 — Mining & Minerals
+
+| # | Project | Level | Industry | Hours | You will learn |
+| --- | --- | --- | --- | --- | --- |
+| 1 | [Primary Crushing Plant](#1-primary-crushing-plant) | Advanced | mining | 50 | Coarse ore handling, crusher feed control, tramp-metal detection & false-trip diagnosis, belt protection at tonnage, feeder sequencing, WEG/IP55 site practice |
+
+The Mining track is authored in `backend/app/content/mining_track.py` and installs
+as its own track (slug `mining-track`). It is **not** part of the Foundations
+index: `GET /api/curriculum` returns only the four foundations, while
+`GET /api/curriculum/tracks` lists both tracks and `GET /api/curriculum/mining`
+serves the minerals catalog. Projects in both tracks carry the same 17-section
+lifecycle and fault-injection grading.
+
+### Primary Crushing Plant
+
+A 50-hour advanced project (`mining-primary-crushing`) for a 400 t/h primary
+crushing plant fed by a vibratory feeder and dump hopper. The 17 sections cover
+grizzly/nibble screening, apron-feeder-vs-crusher rate balancing, belt weigh
+feeders with coarse-air separation, tramp metal detectors (TDK-style), WEG
+starter duty, and site dust/operator protection. Four hidden faults are graded
+against the check palette:
+
+- `belt-misalignment-at-tonnage` — belt wander under load with a healthy
+  alignment-window fault in routine-op and an answering deviation trip.
+- `crusher-feed-choke` — feed-rate climb acts normal but crusher amps climb while
+  level echo is stale; interlock matrix trips that froze the wrong pair.
+- `tramp-metal-false-trip` — TDK trips on frames/couplers rather than ore; healthy
+  cable re-route in the fix.
+- `feeder-never-commands` — commander stuck with the run permissive chain healthy;
+  `WEIGH` steady at idle while `SPEED` roams.
 
 ## The 17-section lifecycle
 
@@ -67,13 +102,17 @@ The projects mirror the hardware the platform already integrates with:
 
 ## Content structure in the repo
 
-- `backend/app/content/curriculum.py` — authored projects, faults, track map, and
+- `backend/app/content/curriculum.py` — authored Foundations projects, faults, track map, and
   the idempotent `install_curriculum()` loader.
-- `backend/app/api/routes_curriculum.py` — `GET /api/curriculum` (index, auth) and
+- `backend/app/content/mining_track.py` — authored Mining & Minerals track (`install_mining_track()`).
+- `backend/app/api/routes_curriculum.py` — `GET /api/curriculum` (Foundations index, auth),
+  `GET /api/curriculum/tracks`, `GET /api/curriculum/mining`,
   `POST /api/curriculum/install` (admin sync), which also refreshes offline bundles.
-- `backend/tests/curriculum_test.py` — suite verifying lifecycle order, published
-  faults, bundles, diagnosis grading and install idempotency.
+- `backend/tests/curriculum_test.py` — Foundations suite (lifecycle order, published faults,
+  bundles, diagnosis grading, install idempotency).
+- `backend/tests/blueprint_test.py` — Mining track, TIA bridge, schematic viewer and fields the
+  portfolio-publish coverage.
 
 To author the next project: add a dict to `CURRICULUM_PROJECTS` (same shape as the
-existing four), restart, and hit **Sync curriculum** — no schema or UI changes
-needed.
+existing four) or to `MINING_PROJECTS` for the minerals track, restart, and hit
+**Sync curriculum** — no schema or UI changes needed.

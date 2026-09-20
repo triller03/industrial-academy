@@ -1,7 +1,7 @@
 # Security
 
-The AI-Powered Industrial Academy is hardened for self-hosting behind a TLS
-terminating reverse proxy. This file summarises the threat stance, the built-in
+The ASAPA platform (formerly the AI-Powered Industrial Academy) is hardened for self-hosting behind a
+TLS-terminating reverse proxy. This file summarises the threat stance, the built-in
 controls and the deployment checklist.
 
 ## Reporting a vulnerability
@@ -25,6 +25,14 @@ only via a reverse proxy. The control scope of hardening is:
   endpoints only expose cross-user activity to admins.
 - **Misconfiguration** — the production guard refuses to boot with the default
   `SECRET_KEY`; `REQUIRE_HTTPS` rejects plain-http clients.
+- **Licensing & entitlement abuse** — paid-tier features are gated server-side
+  (`app/plans.py`) and never by the client; HWID licensing binds a user to a
+  limited set of devices; offline license tokens are signed and HMAC-verified;
+  license keys are single-use and revocable; billing webhooks verify gateway
+  signatures before activating an order.
+- **Budget abuse** — the free Sandbox tier caps online fault diagnoses per day
+  (`5`); the offline-sync path counts into the same bucket so a client cannot
+  bypass the cap by going offline and re-syncing.
 - **Legal mislabelling** — offline bundles strip mentor/fault answer keys; the
   bundle build is admin-only.
 
@@ -37,7 +45,10 @@ only via a reverse proxy. The control scope of hardening is:
 | Rate limiting | Per-IP sliding window, bucketed per auth endpoint (default 60/min each) + global `/api/*` budget (600/min) | `tests/security_test.py` |
 | Auth | Generic 401, min 8-char passwords at registration, account disable flag | `tests/security_test.py`, `smoke_test.py` |
 | Tokens | Short-lived JWT access + rotating single-use refresh tokens | `tests/refresh_test.py` |
-| AuthZ | Admin-only generation/rebuild/integration controls return `403` otherwise | `tests/admin_test.py`, `integration_test.py` |
+| Admin-only | Offline-bundle rebuild, integration link start/stop/snapshot, cross-user activity, curriculum install remain admin-gated (`403` otherwise) | `tests/admin_test.py`, `tests/integration_test.py`, `tests/curriculum_test.py` |
+| AuthZ | Student Pro+: project generation + FRS/P&ID schematic viewer; Professional+: portfolio publish + TIA bridge; admin always passes. `403` with upgrade detail otherwise | `tests/billing_test.py`, `tests/blueprint_test.py` |
+| Budget | Sandbox daily fault-diagnosis cap (5/day, online + offline-sync counted); over cap → `402` | `tests/smoke_test.py`, `tests/offline_test.py`, `sync/manager` |
+| Licensing | HWID device binding (limit 3), signed offline tokens, key redemption + revocation, gateway webhook signature checks | `tests/licensing_test.py`, `tests/billing_test.py` |
 | Production guard | Boot-time `SECRET_KEY` check; docs/OpenAPI disabled in `production` | startup (documented) |
 | HTTPS | `REQUIRE_HTTPS=1` → `426` without `X-Forwarded-Proto: https` | startup (documented) |
 

@@ -1,4 +1,4 @@
-// AI-Powered Industrial Academy — offline engine
+// ASAPA — offline engine
 // IndexedDB bundle store + queued local changes + offline mentor + sync flush.
 (function (global) {
   "use strict";

@@ -1,8 +1,8 @@
-<# uninstall.ps1 — removes Industrial Academy from this PC.
+<# uninstall.ps1 - removes ASAPA (Industrial Automation Training Platform) from this PC.
 
-Removes: desktop/start-menu shortcuts, the "Industrial Academy" scheduled task,
-the firewall rule, and the install folder (requires -RemoveData to delete the
-database and offline bundles too).
+Removes: desktop/start-menu shortcuts, the scheduled task, the firewall rule,
+and the install folder (requires -RemoveData to delete the database and
+offline bundles too). Legacy "Industrial Academy" items are cleaned up as well.
 
 Options:
   -InstallDir <path>   The folder that setup.ps1 created. Defaults to the
@@ -25,7 +25,7 @@ function Confirm-Yes([string]$msg, [switch]$ForceYes) {
     return $r -match "^(y|yes)$"
 }
 
-Write-Host "Industrial Academy uninstaller" -ForegroundColor Cyan
+Write-Host "ASAPA uninstaller" -ForegroundColor Cyan
 Write-Host "Install dir: $InstallDir"
 
 # stop a running server first
@@ -40,25 +40,31 @@ if (Test-Path -LiteralPath $bat) {
     }
 }
 
-# scheduled task
-if (Get-ScheduledTask -TaskName "Industrial Academy" -ErrorAction SilentlyContinue) {
-    if (Confirm-Yes "Remove the 'Industrial Academy' scheduled task?" -ForceYes:$Force) {
-        Unregister-ScheduledTask -TaskName "Industrial Academy" -Confirm:$false -ErrorAction SilentlyContinue
-        Write-Host "  Removed scheduled task." -ForegroundColor Green
+# scheduled task (current + legacy names)
+foreach ($taskName in @("ASAPA", "Industrial Academy")) {
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        if (Confirm-Yes "Remove the '$taskName' scheduled task?" -ForceYes:$Force) {
+            Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+            Write-Host "  Removed scheduled task '$taskName'." -ForegroundColor Green
+        }
     }
 }
 
-# firewall rule
-if ((Get-NetFirewallRule -DisplayName "Industrial Academy (TCP 8000)" -ErrorAction SilentlyContinue) -or
-    (Get-NetFirewallRule -DisplayName "Industrial Academy (TCP 8000)" -ErrorAction SilentlyContinue)) {
-    if (Confirm-Yes "Remove the 'Industrial Academy (TCP 8000)' firewall rule?" -ForceYes:$Force) {
-        Remove-NetFirewallRule -DisplayName "Industrial Academy (TCP 8000)" -ErrorAction SilentlyContinue
-        Write-Host "  Removed firewall rule." -ForegroundColor Green
+# firewall rule (current + legacy names)
+foreach ($ruleName in @("ASAPA (TCP 8000)", "Industrial Academy (TCP 8000)")) {
+    if (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue) {
+        if (Confirm-Yes "Remove the '$ruleName' firewall rule?" -ForceYes:$Force) {
+            Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+            Write-Host "  Removed firewall rule '$ruleName'." -ForegroundColor Green
+        }
     }
 }
 
 # shortcuts
 $targets = @(
+    (Join-Path ([Environment]::GetFolderPath("Desktop")) "ASAPA.lnk"),
+    (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ASAPA\Start ASAPA.lnk"),
+    (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ASAPA\Stop ASAPA.lnk"),
     (Join-Path ([Environment]::GetFolderPath("Desktop")) "Industrial Academy.lnk"),
     (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Industrial Academy\Start Industrial Academy.lnk"),
     (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Industrial Academy\Stop Industrial Academy.lnk")
@@ -66,7 +72,8 @@ $targets = @(
 foreach ($t in $targets) {
     if (Test-Path -LiteralPath $t) { Remove-Item -LiteralPath $t -Force; Write-Host "  Removed shortcut: $t" -ForegroundColor Green }
 }
-Remove-Item (Split-Path $targets[1]) -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\ASAPA") -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Industrial Academy") -Recurse -Force -ErrorAction SilentlyContinue
 
 # install folder
 if (Test-Path -LiteralPath $InstallDir) {

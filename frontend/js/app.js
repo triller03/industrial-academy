@@ -1,4 +1,4 @@
-// AI-Powered Industrial Academy — front-end client
+// ASAPA — front-end client
 const API = "/api";
 
 const state = {
@@ -170,6 +170,30 @@ async function boot() {
   if (Offline.isOnline()) flushQueue();
 }
 
+// ---------- plan badge ----------
+async function loadPlanBadge() {
+  if (!state.token) return;
+  try {
+    const status = await api("/billing/status");
+    updatePlanBadge(status);
+  } catch { updatePlanBadge(null); }
+}
+
+function updatePlanBadge(status) {
+  const badge = $("#plan-badge");
+  if (!badge) return;
+  if (!status) {
+    badge.textContent = "";
+    badge.className = "plan-badge";
+    return;
+  }
+  const gated = ["can_schematic_viewer", "can_public_portfolio", "can_tia_bridge", "can_generate_projects"]
+    .filter((k) => status.gates && status.gates[k] === false).length;
+  badge.innerHTML = `<span class="chip">Plan: ${esc(status.plan_label)}</span>` +
+    (status.trial_days_left > 0 ? ` <span class="muted">trial ${status.trial_days_left}d</span>` : "") +
+    (gated ? ` <span class="warn">${gated} feature${gated === 1 ? "" : "s"} locked</span>` : "");
+}
+
 async function loadProjects() {
   try {
     state.projects = await api("/projects");
@@ -238,7 +262,7 @@ function showTab(tab) {
   $all(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + tab).classList.remove("hidden");
   $all(".nav-item").forEach((n) => n.classList.toggle("active", n.dataset.tab === tab));
-  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext, admin: loadAdmin };
+  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext, admin: loadAdmin, account: loadAccount };
   if (loaders[tab]) loaders[tab]();
 }
 
@@ -276,6 +300,8 @@ async function openProject(id) {
     nav.appendChild(b);
   });
   if (project.sections.length) { nav.children[0].click(); }
+  $("#pd-schematic-btn").classList.remove("hidden");
+  $("#pd-schematic").classList.add("hidden");
 }
 
 function renderProjectProgress(project, progress) {
@@ -336,7 +362,47 @@ function showSection(section) {
 $("#project-back").onclick = () => {
   $("#project-detail").classList.add("hidden");
   $("#projects-list").classList.remove("hidden");
+  $("#pd-schematic-btn").classList.add("hidden");
 };
+
+// ---------- schematic (FRS / P&ID split viewer) ----------
+async function openSchematic() {
+  const project = state.currentProject;
+  if (!project) return;
+  const box = $("#pd-schematic");
+  const btn = $("#pd-schematic-btn");
+  box.classList.remove("hidden");
+  box.innerHTML = "<p class='muted'>Loading schematic…</p>";
+  let sch;
+  try {
+    sch = await api(`/projects/${project.id}/schematic`);
+  } catch (err) {
+    const item = el("div", "panel-item");
+    item.innerHTML = `<div class="title warn">Schematic locked</div><div class="sub">${esc(err.message)}</div>`;
+    const up = el("button", "btn btn-ghost");
+    up.textContent = "See plans";
+    up.style.marginTop = "8px";
+    up.onclick = () => showTab("account");
+    item.appendChild(up);
+    box.innerHTML = "";
+    box.appendChild(item);
+    return;
+  }
+  const table = (title, rows, cols) => {
+    if (!rows || !rows.length) return `<div class="sub">${esc(title)}: none parsed.</div>`;
+    const head = Object.keys(rows[0]).map((c) => `<th>${esc(c)}</th>`).join("");
+    const body = rows.map((r) => `<tr>${Object.values(r).map((v) => `<td>${esc(String(v))}</td>`).join("")}</tr>`).join("");
+    return `<h3>${esc(title)} (${rows.length})</h3>
+      <div class="table-wrap"><table class="int-table"><tr>${head}</tr>${body}</table></div>`;
+  };
+  box.innerHTML =
+    `<div class="panel-item"><div class="title">Schematic — ${esc(sch.project_title || project.title)}</div>
+     <div class="sub">${esc(sch.source_section || "p_and_id")} · parsed from the engineering documents</div></div>` +
+    (sch.summary ? `<div class="sub">${esc(sch.summary)}</div>` : "") +
+    table("Instruments", sch.instruments, ["tag", "service"]) +
+    table("I/O map", sch.io_map, ["point", "description"]) +
+    table("Tag register", sch.tag_register, ["tag", "description"]);
+}
 
 // ---------- dashboard ----------
 function fmtDuration(sec) {
@@ -628,8 +694,197 @@ async function loadCredentials() {
     `<div class="title">${esc(c.certificate_ref)}</div><div class="sub">Project ${c.project_id} · issued ${esc(c.issued_at.slice(0, 10))} · verify token ${esc(c.verification_token.slice(0, 12))}…</div>`)));
   const pl = $("#portfolio-list"); pl.innerHTML = "";
   if (!port.length) pl.innerHTML = "<p class='muted'>No portfolio entries yet.</p>";
-  port.forEach((p) => pl.appendChild(el("div", "panel-item",
-    `<div class="title">${esc(p.title)}</div><div class="sub">${esc(p.summary)}</div>`)));
+  port.forEach((p) => {
+    const item = el("div", "panel-item");
+    item.innerHTML = `<div class="title">${esc(p.title)} ${p.published ? '<span class="chip ok">published</span>' : ""}</div>
+      <div class="sub">${esc(p.summary)}</div>`;
+    if (p.published && p.public_url) {
+      item.appendChild(el("div", "sub",
+        `<span class="ok">Live at </span><a href="${esc(p.public_url)}" target="_blank" rel="noopener">${esc(p.public_url)}</a>`));
+    }
+    const row = el("div", "row");
+    if (!p.published) {
+      const pub = el("button", "btn btn-ghost");
+      pub.textContent = "Publish";
+      pub.onclick = async () => {
+        try {
+          await api(`/credentials/portfolio/${p.id}/publish`, { method: "POST", body: {} });
+          loadCredentials();
+        } catch (e) { alert("Failed: " + e.message); }
+      };
+      row.appendChild(pub);
+    } else {
+      const unpub = el("button", "btn btn-ghost");
+      unpub.textContent = "Unpublish";
+      unpub.onclick = async () => {
+        try {
+          await api(`/credentials/portfolio/${p.id}/unpublish`, { method: "POST" });
+          loadCredentials();
+        } catch (e) { alert("Failed: " + e.message); }
+      };
+      row.appendChild(unpub);
+    }
+    item.appendChild(row);
+    pl.appendChild(item);
+  });
+}
+
+// ---------- account / billing / licensing ----------
+async function loadAccount() {
+  let status, plans, licenses, licStatus;
+  try { status = await api("/billing/status"); } catch { /* offline */ }
+  try { plans = await api("/billing/plans"); } catch { /* offline */ }
+  try { licenses = await api("/billing/licenses"); } catch { /* offline */ }
+  try { licStatus = await api("/licensing/status"); } catch { /* offline */ }
+
+  updatePlanBadge(status);
+
+  const box = $("#plan-status");
+  if (status) {
+    const gates = [
+      ["Unlimited Fault Lab", !status.gates || status.plan_key !== "sandbox"],
+      ["Project generation", status.gates && status.gates.can_generate_projects],
+      ["Full-solution mentor", status.gates && status.gates.can_full_solutions],
+      ["FRS / P&ID schematic viewer", status.gates && status.gates.can_schematic_viewer],
+      ["Public portfolio URL", status.gates && status.gates.can_public_portfolio],
+      ["TIA Openness bridge", status.gates && status.gates.can_tia_bridge],
+    ];
+    box.innerHTML = `<div class="title">${esc(status.plan_label)} <span class="chip">${esc(status.plan_key)}</span></div>` +
+      `<div class="sub">Trial days left: ${status.trial_days_left}` +
+      (status.next_renewal ? ` · Renewal: ${esc(String(status.next_renewal).slice(0, 10))}` : "") + `</div>` +
+      `<ul>${gates.map(([label, on]) => `<li class="${on ? "ok" : "warn"}">${mark(on)} ${esc(label)}</li>`).join("")}</ul>`;
+  } else {
+    box.innerHTML = "<p class='muted'>Plan info requires a connection. It will appear when you are back online.</p>";
+  }
+
+  const grid = $("#plan-grid");
+  const catalog = (plans && plans.catalog) || {};
+  const currentKey = (status && status.plan_key) || (licStatus && licStatus.plan_key) || "sandbox";
+  grid.innerHTML = "";
+  const order = ["sandbox", "student_pro", "professional", "institutional"];
+  order.forEach((key) => {
+    const p = catalog[key];
+    if (!p) return;
+    const card = el("div", "plan-card" + (key === currentKey ? " on" : ""));
+    card.innerHTML = `<div class="title">${esc(p.name)}</div>
+      <div class="price">${esc(p.price_usd)}</div>
+      <ul>${(p.bullets || []).map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`;
+    if (key === currentKey) {
+      card.appendChild(el("div", "plan-current", "Current plan"));
+    } else if (key !== "sandbox") {
+      const b = el("button", "btn btn-ghost");
+      b.textContent = "Choose " + p.name;
+      b.onclick = () => checkoutPlan(key, plans.gateway);
+      card.appendChild(b);
+    }
+    grid.appendChild(card);
+  });
+  if (plans && plans.gateway && plans.gateway !== "local") {
+    const note = el("div", "sub");
+    note.textContent = `Checkout gateway: ${plans.gateway}.`;
+    grid.appendChild(note);
+  }
+
+  const ll = $("#license-list");
+  ll.innerHTML = "";
+  if (!licenses || !licenses.length) {
+    ll.innerHTML = "<p class='muted'>No licenses yet — activate a key or check out a plan above.</p>";
+  } else {
+    licenses.forEach((l) => {
+      ll.appendChild(el("div", "panel-item",
+        `<div class="title">${esc(l.license_key)} <span class="chip">${l.status}</span> <span class="chip">${esc(l.plan)}</span></div>
+         <div class="sub">${esc(l.source)} · ${esc(l.price_usd || "—")} · ${l.expires_at ? "expires " + esc(l.expires_at.slice(0, 10)) : "no expiry"}</div>`));
+    });
+  }
+
+  const hw = $("#hwid-list");
+  const hwids = (licStatus && licStatus.bound_hwids) || [];
+  hw.innerHTML = "";
+  if (!hwids.length) {
+    hw.innerHTML = "<p class='muted'>No hardware ids bound yet.</p>";
+  } else {
+    hwids.forEach((h) => hw.appendChild(el("div", "panel-item",
+      `<div class="title">${esc(h.slice(0, 24))}…</div>
+       <div class="sub">${hwids.length}/${licStatus.device_limit || 3} device slots used</div>`)));
+  }
+
+  const ot = $("#offline-token-box");
+  if (licStatus && licStatus.offline_token) {
+    ot.classList.remove("hidden");
+    $("#offline-token").value = licStatus.offline_token;
+  } else {
+    ot.classList.add("hidden");
+  }
+}
+
+function mark(on) {
+  return on ? "\u2713" : "\u2717";
+}
+
+async function checkoutPlan(plan, gateway) {
+  const pending = $("#checkout-pending");
+  pending.classList.remove("hidden");
+  pending.className = "sync-out";
+  pending.textContent = "Creating order…";
+  try {
+    const res = await api("/billing/checkout", { method: "POST", body: { plan } });
+    if (res.gateway === "local") {
+      const wrap = el("div", "");
+      wrap.innerHTML = `<div><strong>${esc(res.price_usd)} — ${esc(plan)}</strong></div>
+        <div class="sub">Order #${res.order_id} · key ${esc(res.license_key)}. This eval build uses the local test gateway.</div>`;
+      const row = el("div", "row");
+      const confirm = el("button", "btn btn-primary");
+      confirm.textContent = "Confirm order (simulate payment)";
+      const co = el("span", "muted");
+      row.appendChild(confirm);
+      row.appendChild(co);
+      wrap.appendChild(row);
+      pending.innerHTML = "";
+      pending.appendChild(wrap);
+      confirm.onclick = async () => {
+        co.textContent = "Processing…";
+        try {
+          await api("/billing/test-checkout/" + res.order_id, { method: "POST" });
+          co.textContent = "Activated.";
+          loadAccount();
+          loadPlanBadge();
+        } catch (e) { co.textContent = "Failed: " + e.message; }
+      };
+    } else if (res.gateway === "stripe" && res.checkout_url) {
+      pending.innerHTML = `<div class="sub">Opening secure checkout…</div>`;
+      window.open(res.checkout_url, "_blank");
+    } else {
+      pending.innerHTML = `<div class="sub">Paynow order #${res.order_id} created. Complete payment, then activate your key below.</div>`;
+      $("#activate-key").value = res.license_key || "";
+    }
+  } catch (e) {
+    pending.textContent = "Failed: " + e.message;
+  }
+}
+
+async function activateKey() {
+  const out = $("#activate-out");
+  const key = $("#activate-key").value.trim();
+  out.textContent = "Activating…";
+  try {
+    const res = await api("/billing/activate", { method: "POST", body: { license_key: key } });
+    out.textContent = `Activated ${esc(res.plan)} — expires ${res.expires_at ? res.expires_at.slice(0, 10) : "never"}.`;
+    loadAccount();
+    loadPlanBadge();
+  } catch (e) { out.textContent = "Failed: " + e.message; }
+}
+
+async function bindHwid() {
+  const out = $("#hwid-out");
+  out.textContent = "Binding…";
+  try {
+    const res = await api("/licensing/register-hwid", {
+      method: "POST",
+      body: { hwid: deviceFingerprint(), label: "Web client", platform: navigator.platform || "web" },
+    });
+    out.textContent = `Bound. ${res.bound_hwids.length}/${res.device_limit} device slots used.`;
+    loadAccount();
+  } catch (e) { out.textContent = "Failed: " + e.message; }
 }
 
 // ---------- devices ----------
@@ -861,6 +1116,70 @@ async function runIntegrationAction(label, fn) {
   loadIntegrations();
 }
 
+// ---------- TIA Openness bridge (admin panel) ----------
+async function tiaProbe() {
+  const host = $("#tia-status");
+  host.innerHTML = "<p class='muted'>Probing…</p>";
+  try {
+    const r = await api("/integrations/tia/probe");
+    host.innerHTML = `<div class="panel-item"><div class="title">TIA probe ${r.available ? '<span class="ok">available</span>' : '<span class="warn">not available</span>'}</div>
+      <div class="sub">${esc(r.detail || "")}</div></div>`;
+  } catch (e) {
+    host.innerHTML = `<div class="panel-item"><div class="title warn">TIA probe failed</div><div class="sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+async function tiaValidateScl() {
+  const out = $("#tia-scl-out");
+  out.textContent = "Validating…";
+  try {
+    const r = await api("/integrations/tia/validate-scl", {
+      method: "POST", body: { source: $("#tia-scl").value, block_name: "FB_Student" },
+    });
+    out.textContent = r.ok ? `OK — readiness ${r.score}/100` : `Blocked — readiness ${r.score}/100`;
+    const box = $("#tia-result");
+    box.className = "sync-out " + (r.ok ? "ok" : "warn");
+    box.innerHTML = `<div>Score ${r.score}/100 · ${r.checked} line(s) · blocks: ${(r.blocks || []).map((b) => b.name).join(", ") || "none"}</div>` +
+      (r.issues && r.issues.length
+        ? `<ul>${r.issues.map((i) => `<li>[${esc(i.severity)}] line ${i.line}: ${esc(i.message)}</li>`).join("")}</ul>`
+        : `<div class="sub">No issues found. ${esc(r.note || "")}</div>`);
+  } catch (e) { out.textContent = "Failed: " + e.message; }
+}
+
+async function tiaValidateTags() {
+  const out = $("#tia-tags-out");
+  out.textContent = "Validating…";
+  try {
+    const r = await api("/integrations/tia/import-tags", {
+      method: "POST", body: { import_name: "student-tags.csv", csv: $("#tia-tags").value },
+    });
+    out.textContent = r.ok ? `OK — ${r.rows} tag row(s) valid` : `Blocked — ${r.issues.length} issue(s)`;
+    const box = $("#tia-result");
+    box.className = "sync-out " + (r.ok ? "ok" : "warn");
+    box.innerHTML = `<div>${r.rows} row(s) · ${r.standard}</div>` +
+      (r.issues && r.issues.length
+        ? `<ul>${r.issues.map((i) => `<li>[${esc(i.severity)}] line ${i.line}: ${esc(i.message)}</li>`).join("")}</ul>`
+        : `<div class="sub">Tag register ready for import.</div>`);
+  } catch (e) { out.textContent = "Failed: " + e.message; }
+}
+
+async function tiaDownloadTemplate() {
+  const out = $("#tia-result");
+  try {
+    const res = await fetch(API + "/integrations/tia/template.csv", { headers: { Authorization: "Bearer " + state.token } });
+    if (!res.ok) throw new Error("Download failed (" + res.status + ")");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "asapa-tag-import-template.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    if (out) { out.className = "sync-out ok"; out.textContent = "Template downloaded — headers: Tag,DataType,Address,Description."; }
+  } catch (e) {
+    if (out) { out.className = "sync-out warn"; out.textContent = "Failed: " + e.message; }
+  }
+}
+
 async function loadActivity() {
   const list = $("#activity-list");
   if (!list) return;
@@ -968,6 +1287,13 @@ $("#int-s7-probe").onclick = () => runIntegrationAction("Testing S7", () => api(
 $("#int-opcua-probe").onclick = () => runIntegrationAction("Testing OPC UA", () => api("/integrations/opcua/probe", { method: "POST" }));
 $("#int-snapshot").onclick = () => runIntegrationAction("Recording snapshot", () => api("/integrations/snapshot", { method: "POST" }));
 $("#cur-install").onclick = syncCurriculum;
+$("#pd-schematic-btn").onclick = openSchematic;
+$("#activate-btn").onclick = activateKey;
+$("#hwid-bind").onclick = bindHwid;
+$("#tia-probe").onclick = tiaProbe;
+$("#tia-template").onclick = tiaDownloadTemplate;
+$("#tia-scl-run").onclick = tiaValidateScl;
+$("#tia-tags-run").onclick = tiaValidateTags;
 setInterval(() => {
   if (!$("#view-admin").classList.contains("hidden") && state.user && state.user.is_admin) loadIntegrations();
 }, 4000);

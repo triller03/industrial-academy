@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Build the Windows desktop app + installer for the AI-Powered Industrial Academy.
+    Build the Windows desktop app + installer for ASAPA (Industrial Automation Training Platform).
 .DESCRIPTION
     1. Build venv (.build-venv, core requirements + pywebview + PyInstaller + Pillow)
     2. Render the app icon (assets/app.ico via Pillow)
     3. PyInstaller one-folder --windowed bundle using launcher.py
-    4. Compile the per-user Inno Setup installer (IndustrialAcademy-Setup-<version>.exe)
+    4. Compile the per-user Inno Setup installer (ASAPA-Setup-<version>.exe)
     Inno Setup is fetched as a portable copy under .tools\innosetup when ISCC_PATH is not set.
 .PARAMETER SkipVenv
     Reuse an existing .build-venv instead of (re)creating and reinstalling.
@@ -120,7 +120,7 @@ Set-Content -LiteralPath $IssFile -Value $IssText -Encoding ASCII
 
 Write-Host "Compiling installer..."
 & $Iscc $IssFile
-$SetupExe = Join-Path $DesktopDir ("dist-desktop\IndustrialAcademy-Setup-" + $Version + ".exe")
+$SetupExe = Join-Path $DesktopDir ("dist-desktop\ASAPA-Setup-" + $Version + ".exe")
 if (-not (Test-Path -LiteralPath $SetupExe)) {
     throw "ISCC did not produce $SetupExe"
 }

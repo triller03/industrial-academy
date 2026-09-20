@@ -261,7 +261,25 @@ class PortfolioOut(ORMModel):
     entry_ref: str
     title: str
     summary: str
-    created_at: datetime
+    published: bool = False
+    published_at: datetime | None = None
+    public_url: str = ""
+
+
+class PortfolioPublishIn(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+
+
+# ---------- Schematics (FRS / P&ID viewer) ----------
+class SchematicOut(BaseModel):
+    project_id: int
+    slug: str
+    title: str
+    instruments: list[dict]
+    io: list[dict]
+    tags: list[dict]
+    loops: list[dict]
+    note: str
 
 
 # ---------- Stats / analytics ----------

@@ -1,13 +1,15 @@
-// AI-Powered Industrial Academy — service worker
+// ASAPA — Industrial Automation Training Platform — service worker
 // Caches the app shell so the UI loads with no network. API calls are never cached;
 // content for offline study comes from IndexedDB bundles instead.
-const CACHE = "academy-shell-v3";
+const CACHE = "academy-shell-v5";
 const SHELL = [
   "/",
   "/index.html",
   "/css/styles.css",
   "/js/offline.js",
   "/js/app.js",
+  "/logo.png",
+  "/favicon.ico",
 ];
 
 self.addEventListener("install", (event) => {

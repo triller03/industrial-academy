@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI-Powered Industrial Academy</title>
+  <title>ASAPA — Industrial Automation Training Platform</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -11,10 +12,10 @@
   <div id="auth-screen" class="auth-screen hidden">
     <div class="auth-card">
       <div class="brand">
-        <div class="brand-mark">▲</div>
+        <img class="brand-mark" src="logo.png" alt="ASAPA" />
         <div>
-          <div class="brand-name">Industrial Academy</div>
-          <div class="brand-sub">AI-Powered · Offline-First PLC Engineering</div>
+          <div class="brand-name">ASAPA</div>
+          <div class="brand-sub">Industrial Automation Training Platform</div>
         </div>
       </div>
       <div class="tabs-mini" id="auth-tabs">
@@ -48,10 +49,10 @@
   <div id="app" class="app hidden">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">▲</div>
+        <img class="brand-mark" src="logo.png" alt="ASAPA" />
         <div>
-          <div class="brand-name">Industrial Academy</div>
-          <div class="brand-sub">AI-Powered</div>
+          <div class="brand-name">ASAPA</div>
+          <div class="brand-sub">AI-Powered · Offline-First</div>
         </div>
       </div>
       <nav id="nav">
@@ -61,11 +62,13 @@
         <button class="nav-item" data-tab="faultlab">Fault Lab</button>
         <button class="nav-item" data-tab="credentials">Credentials</button>
         <button class="nav-item" data-tab="devices">Devices</button>
+        <button class="nav-item" data-tab="account">Account &amp; Plan</button>
         <button class="nav-item hidden" id="nav-admin" data-tab="admin">Admin</button>
       </nav>
       <div class="sidebar-footer">
         <div id="net-status" class="net-status"></div>
         <div id="user-chip" class="user-chip"></div>
+        <div id="plan-badge" class="plan-badge"></div>
         <button id="logout-btn" class="btn btn-ghost btn-block">Sign out</button>
       </div>
     </aside>
@@ -91,11 +94,15 @@
           <h2 id="pd-title"></h2>
           <p id="pd-meta" class="muted"></p>
           <div id="pd-progress" class="progress-strip"></div>
+          <div class="row" style="justify-content:flex-end; margin-bottom:8px;">
+            <button id="pd-schematic-btn" class="btn btn-ghost hidden">FRS / P&amp;ID schematic</button>
+          </div>
           <div class="split">
             <div id="pd-sections" class="section-nav"></div>
             <div id="pd-content" class="section-content">
               <h3 id="pd-section-title"></h3>
               <div id="pd-section-body"></div>
+              <div id="pd-schematic" class="hidden schematic-panel"></div>
               <div class="row section-actions">
                 <button id="pd-complete" class="btn btn-primary">Mark section complete</button>
                 <span id="pd-complete-note" class="muted"></span>
@@ -172,6 +179,34 @@
         <div id="sync-out" class="sync-out"></div>
       </section>
 
+      <section id="view-account" class="view">
+        <h1>Account &amp; Plan</h1>
+        <p class="muted">Your tier decides the tools you can drive. All learning content and offline bundles stay open on every plan.</p>
+        <div id="plan-status" class="panel-item"></div>
+        <h2>Choose a plan</h2>
+        <div id="plan-grid" class="plan-grid"></div>
+        <div id="checkout-pending" class="hidden sync-out"></div>
+        <h2>Activate a license key</h2>
+        <div class="row">
+          <input id="activate-key" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" style="flex:1" />
+          <button id="activate-btn" class="btn btn-ghost">Activate</button>
+          <span id="activate-out" class="muted"></span>
+        </div>
+        <h2>Your licenses</h2>
+        <div id="license-list" class="panel-list"></div>
+        <h2>Licensed devices (HWID)</h2>
+        <p class="muted">Bind the hardware ids that may run this platform offline. Your browser is already authorized as a device.</p>
+        <div class="row">
+          <button id="hwid-bind" class="btn btn-primary">Bind this device as licensed</button>
+          <span id="hwid-out" class="muted"></span>
+        </div>
+        <div id="hwid-list" class="panel-list"></div>
+        <div id="offline-token-box" class="hidden">
+          <h2>Offline license token</h2>
+          <textarea id="offline-token" rows="4" readonly></textarea>
+        </div>
+      </section>
+
       <section id="view-admin" class="view">
         <h1>Admin</h1>
         <p class="muted">Generate new projects from industry templates and review learner activity.</p>
@@ -233,6 +268,26 @@
         </div>
         <div id="int-detail" class="panel-list"></div>
         <div id="int-msg" class="sync-out"></div>
+        <h3>TIA Openness bridge</h3>
+        <p class="muted">SCL pre-compile validation and tag-import checks. Runs offline unless a licensed TIA host is configured.</p>
+        <div class="row">
+          <button id="tia-probe" class="btn btn-ghost">Probe TIA host</button>
+          <button id="tia-template" class="btn btn-ghost">Download tag template</button>
+        </div>
+        <div id="tia-status" class="panel-list"></div>
+        <label>SCL source to validate</label>
+        <textarea id="tia-scl" rows="5" placeholder="FUNCTION_BLOCK FB_StarDelta&#10;BEGIN&#10;  // paste SCL here"></textarea>
+        <div class="row">
+          <button id="tia-scl-run" class="btn btn-primary">Validate SCL</button>
+          <span id="tia-scl-out" class="muted"></span>
+        </div>
+        <label>Tag CSV to validate (name, area, address, data_type)</label>
+        <textarea id="tia-tags" rows="3" placeholder="motor_run,Q0.0,BOOL"></textarea>
+        <div class="row">
+          <button id="tia-tags-run" class="btn btn-primary">Validate tag import</button>
+          <span id="tia-tags-out" class="muted"></span>
+        </div>
+        <div id="tia-result" class="sync-out"></div>
       </section>
     </main>
   </div>

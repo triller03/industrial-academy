@@ -1,4 +1,4 @@
-"""AI-Powered Industrial Academy - Windows desktop launcher.
+"""ASAPA - Industrial Automation Training Platform (Windows desktop launcher).
 
 Entry point for the PyInstaller bundle (see build-desktop.ps1). Starts the
 FastAPI server on loopback, serves the bundled frontend, and hosts the UI in a
@@ -176,7 +176,7 @@ def _main() -> int:
     import webview
 
     webview.create_window(
-        "AI-Powered Industrial Academy",
+        "ASAPA - Industrial Automation Training Platform",
         url,
         width=1280,
         height=840,

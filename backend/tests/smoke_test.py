@@ -75,7 +75,7 @@ check("mentor safety override", st == 200 and m2["mode"] == "safety" and m2["saf
 st, m3 = call("/mentor/chat", "POST", body={"message": "I don't understand, I'm stuck and confused", "project_id": pid}, token=token)
 check("mentor frustration->guided", st == 200 and m3["mode"] == "guided", str(m3)[:140])
 
-st, m4 = call("/mentor/solution", "POST", body={"message": "full solution", "project_id": pid, "section_key": "plc_program", "history": [{"role": "user", "level": 5}]}, token=token)
+st, m4 = call("/mentor/solution", "POST", body={"message": "full solution", "project_id": pid, "section_key": "plc_program", "history": [{"role": "user", "level": 5}]}, token=dtok["access_token"])
 check("mentor solution L5", st == 200 and m4["level"] == 5, str(m4)[:140])
 
 fp = "fp_smoketest_" + uuid.uuid4().hex

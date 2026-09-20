@@ -561,11 +561,31 @@ def seed_if_empty() -> None:
     db = SessionLocal()
     try:
         if db.query(Project).count() > 0:
+            _backfill_plans(db)
             return
         _create_demo_user(db)
         _seed_water_project(db)
+        _backfill_plans(db)
     finally:
         db.close()
+
+
+def _backfill_plans(db: Session) -> None:
+    """Keep the demo/admin accounts on the entitlement they demo (idempotent).
+
+    demo = professional (public portfolio + TIA bridge surfaces), admin =
+    institutional (all gated routes resolve through plan_key). Runs every
+    startup so upgrades never leave demo users on the sandbox plan.
+    """
+    plan_map = {
+        "demo@academy.local": "professional",
+        "admin@academy.local": "institutional",
+    }
+    for email, plan in plan_map.items():
+        user = db.query(User).filter(User.email == email).first()
+        if user and (user.plan or "sandbox") != plan:
+            user.plan = plan
+    db.commit()
 
 
 def _create_demo_user(db: Session) -> None:
@@ -578,6 +598,7 @@ def _create_demo_user(db: Session) -> None:
         full_name="Demo Student",
         hashed_password=hash_password("demo1234"),
         institution="MSU",
+        plan="professional",
     ))
     db.commit()
 
@@ -589,6 +610,7 @@ def _create_demo_user(db: Session) -> None:
         hashed_password=hash_password("admin1234"),
         institution="Platform",
         is_admin=True,
+        plan="institutional",
     ))
     db.commit()
 

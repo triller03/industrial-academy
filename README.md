@@ -69,19 +69,23 @@ industrial-academy/
 │   │   ├── sync/         # offline sync manager + device binding
 │   │   ├── config.py
 │   │   ├── database.py
+│   │   ├── init_db.py    # first-run init: schema, seed, curriculum, offline bundles
 │   │   ├── seeder.py     # seed data: water treatment plant, 17 sections, 8 faults
 │   │   └── main.py       # FastAPI app, routers, static frontend mount
 │   ├── tests/            # integration + static checks (see Testing)
 │   ├── requirements.txt
 │   ├── requirements-integrations.txt   # optional hardware-link dependencies
 │   └── run.py
-└── frontend/
-    ├── index.html        # auth screen + app shell (6 tabs)
-    ├── sw.js             # service worker (app-shell cache only)
-    ├── css/styles.css
-    └── js/
-        ├── app.js        # SPA: routing, dashboard, mentor, faults, devices, integrations
-        └── offline.js    # IndexedDB bundles, offline queue, local progress
+├── frontend/
+│   ├── index.html        # auth screen + app shell (6 tabs)
+│   ├── sw.js             # service worker (app-shell cache only)
+│   ├── css/styles.css
+│   └── js/
+│       ├── app.js        # SPA: routing, dashboard, mentor, faults, devices, integrations
+│       └── offline.js    # IndexedDB bundles, offline queue, local progress
+└── packaging/
+    ├── Build-Iso.ps1     # builds the offline installer ISO (Windows IMAPI2)
+    └── setup/            # offline installer: setup.bat/ps1, start/stop, uninstall, INSTALL.txt
 ```
 
 **Stack:** FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2 · SQLite · JWT (python-jose) ·
@@ -150,6 +154,44 @@ Copy `.env.example` (repo root) to `.env` to override defaults:
 | `SEED_ON_STARTUP` | `true` | Seed demo data if the database is empty |
 | `INTEGRATIONS_ENABLED` / `MODBUS_ENABLED` / `SIMULATED_PLANT` | `true` | Integration layer on/off |
 | `S7_ENABLED` / `OPCUA_ENABLED` | `false` | S7 / WinCC links (see Integrations) |
+
+---
+
+## Offline installer (ISO / USB)
+
+The platform can be shipped as a self-contained **Windows installer ISO**: the media bundles the
+application, every dependency as wheels, and the Python 3.12 runtime, so an air-gapped lab PC can
+install and run everything with no internet and no prerequisites.
+
+The installer (`packaging/setup/setup.bat` → `setup.ps1`) copies the app to
+`%LOCALAPPDATA%\IndustrialAcademy`, installs bundled Python 3.12 silently if needed, creates a fresh
+virtual environment from the bundled `wheels/`, builds the database + curriculum + offline bundles
+(`python -m app.init_db`), and creates Desktop / Start Menu shortcuts. INSTALL.txt on the media has
+the full runbook (firewall flag, scheduled-task autostart, production `.env`, uninstall).
+
+### Build the ISO
+
+Windows 10/11 ships the IMAPI2 filesystem API the builder uses, so no extra tools are required:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\packaging\Build-Iso.ps1
+```
+
+This produces `dist\Industrial-Academy-1.0.0-setup-x64.iso` (~40 MB) and stages the tree at
+`dist\staging\Industrial-Academy-1.0.0`. Options: `-SkipIso` (stage only), `-NoWheelDownload`
+(reuse cached wheels), `-ShowProgress`.
+
+What ends up on the disc:
+
+- `setup.bat` / `setup.ps1` + `start-academy.bat` / `stop-academy.bat` / `uninstall.ps1`
+- `INSTALL.txt`, `AUTORUN.INF` (no auto-run — you always choose to install), `CHECKSUMS.txt`
+- `app/` — backend + frontend (venv, tests, bundles and databases excluded)
+- `docs/` — README, SECURITY, CURRICULUM, `.env.example`
+- `wheels/` — every pinned dependency (built `--only-binary` for CPython 3.12, win_amd64)
+- `python/python-3.12.10-amd64.exe` (silent per-user install; SHA256-verifiable)
+
+The version string lives in `backend/app/config.py` (`app_version`) and drives both the ISO filename
+and the recorded installer version. Rebuild the media any time the app or dated dependencies change.
 
 ---
 

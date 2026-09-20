@@ -1,0 +1,93 @@
+# AI-Powered Industrial Academy — Offline Installation
+
+This ISO contains a complete, self-contained copy of the AI-Powered Industrial
+Academy. No internet connection is needed to install or run it: all Python
+packages are bundled as wheels, and Python 3.12 itself is bundled. The
+application boots with a built-in curriculum and works fully offline.
+
+Quick setup:  double-click **setup.bat** and follow the prompts.
+
+---
+
+## Requirements
+
+- Windows 10 or Windows 11 (64-bit)
+- ~500 MB free disk space
+- No internet access required (all dependencies are on this disc)
+- Administrator rights are optional (only needed for the firewall rule)
+
+## 1. Install
+
+1. Open the disc in Explorer and double-click `setup.bat`.
+   (Windows blocks AutoRun by default since Windows Vista — this disc
+   deliberately does **not** auto-install; you always decide when to run setup.)
+2. The installer will:
+   - copy the application to `%LOCALAPPDATA%\IndustrialAcademy`
+     (override with `-InstallDir`, e.g. run
+     `setup.bat -InstallDir C:\IndustrialAcademy`)
+   - install bundled Python 3.12 silently if no suitable Python 3.10–3.13 is found
+   - create a virtual environment and install every dependency from `wheels\`
+     — no network needed
+   - build the initial database, install the curriculum, and generate the
+     offline simulation bundles
+   - create shortcuts on your Desktop and in the Start Menu
+3. Advanced install options (run `setup.ps1` directly for these):
+   - `-Port 8001` — different server port
+   - `-EnableFirewall` — allow remote access through Windows Firewall (admin)
+   - `-StartAtBoot` — register a scheduled task that starts the server at logon
+   - `-SkipInit` — skip the first-run database build
+   - `-PassThru` — machine-readable JSON summary on stdout
+
+## 2. Run
+
+- Double-click **Start Industrial Academy** (Desktop or Start Menu shortcut).
+- A console window opens and the server starts on http://127.0.0.1:8000.
+  Your browser opens automatically (if a browser is installed).
+- To stop it: close the console window, or double-click **Stop Industrial Academy**.
+
+If your PC is on a lab network you can connect from other machines with
+`http://<this-pc-ip>:8000` (set `-EnableFirewall` and use a fixed IP).
+
+All data (accounts, progress, certificates, reports) is stored in
+`app\backend\academy.db` inside the install folder. Back it up to preserve
+learner progress.
+
+## 3. Sign in
+
+The first-run build seeds demo accounts:
+
+| Role  | Email               | Password  |
+|-------|---------------------|-----------|
+| Student | demo@academy.local | demo1234  |
+| Admin | admin@academy.local | admin1234 |
+
+> **IMPORTANT:** these are publicly known defaults. Before real use, change the
+> passwords or disable the accounts. You can do this after logging in, or point
+> the server at your own auth backend.
+
+If you want a production setup (required HTTPS secret, no dev-mode demo), see
+`app\backend\.env.example` on the disc and the README.
+
+## 4. Where security-related info is
+
+- `INSTALL.txt` — this file
+- `docs\README.md` — full README, API reference, deployment notes
+- `docs\SECURITY.md` — hardening guide, TLS instructions
+- `docs\CURRICULUM.md` — the built-in curriculum, offline bundles explained
+
+## 5. Uninstall
+
+- Double-click the `uninstall.ps1` file (right-click → Run with PowerShell), or
+  run `powershell -ExecutionPolicy Bypass -File uninstall.ps1`.
+- Use `-RemoveData` to also delete the database and downloaded bundles
+  (irreversible).
+
+## 6. Rebuilding this ISO
+
+The `Build-Iso.ps1` script in the source repository regenerates the disc image;
+the checksums on the disc (`CHECKSUMS.txt`) let you verify the files you
+installed match the build. See the project README for details.
+
+---
+
+AI-Powered Industrial Academy v1.0.0 — offline installer media.

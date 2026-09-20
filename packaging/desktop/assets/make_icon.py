@@ -20,6 +20,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 FRONTEND = os.path.join(REPO_ROOT, "frontend")
 
+# When the brand logo exists as logo_source.png it overrides the procedural
+# monogram below for every output (app icon, mark, lockup, favicon).
+USER_LOGO = os.path.join(HERE, "logo_source.png")
+
 S = 512
 C = S // 2
 
@@ -123,10 +127,16 @@ def make_mark(size: int = S) -> Image.Image:
     return img
 
 
-def make_lockup() -> Image.Image:
+def _user_mark(size: int) -> Image.Image:
+    img = Image.open(USER_LOGO).convert("RGBA")
+    return img.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def make_lockup(mark: Image.Image | None = None) -> Image.Image:
     W, H = 560, 140
     img = Image.new("RGBA", (W, H), CLEAR)
-    mark = make_mark(120)
+    if mark is None:
+        mark = make_mark(120)
     img.paste(mark, (10, 10), mark)
     d = ImageDraw.Draw(img)
 
@@ -150,14 +160,14 @@ def make_lockup() -> Image.Image:
 def main() -> None:
     os.makedirs(FRONTEND, exist_ok=True)
 
-    mark = make_mark(512)
+    mark = (_user_mark(512) if os.path.exists(USER_LOGO) else make_mark(512))
     mark.save(os.path.join(HERE, "asapa_logo.png"))
     mark.save(os.path.join(HERE, "app.ico"),
               format="ICO",
               sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
                      (64, 64), (128, 128), (256, 256)])
 
-    lockup = make_lockup()
+    lockup = make_lockup(mark)
     lockup.save(os.path.join(HERE, "asapa_lockup.png"))
 
     mark.resize((128, 128), Image.Resampling.LANCZOS).save(

@@ -85,7 +85,8 @@ industrial-academy/
 │       └── offline.js    # IndexedDB bundles, offline queue, local progress
 └── packaging/
     ├── Build-Iso.ps1     # builds the offline installer ISO (Windows IMAPI2)
-    └── setup/            # offline installer: setup.bat/ps1, start/stop, uninstall, INSTALL.txt
+    ├── setup/            # offline installer: setup.bat/ps1, start/stop, uninstall, INSTALL.txt
+    └── desktop/          # Windows desktop app: launcher.py + build-desktop.ps1 + installer.iss
 ```
 
 **Stack:** FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic 2 · SQLite · JWT (python-jose) ·
@@ -192,6 +193,52 @@ What ends up on the disc:
 
 The version string lives in `backend/app/config.py` (`app_version`) and drives both the ISO filename
 and the recorded installer version. Rebuild the media any time the app or dated dependencies change.
+
+---
+
+## Windows desktop app + installer
+
+For a native, browser-less experience the platform is also packaged as a **Windows desktop
+application** (`IndustrialAcademy.exe`): it starts the API on a random loopback port and hosts the
+UI in a WebView2 window (no console, no separate browser tab). A per-user **Inno Setup installer**
+wraps the whole bundle.
+
+The desktop build ships without the optional hardware-integration libraries, so the admin
+"Live integrations" view reports them as *disabled* and the app never binds the privileged Modbus
+port 502. All user data (SQLite database, curriculum, offline bundles) is stored in
+`%LOCALAPPDATA%\IndustrialAcademy`, outside the install directory, and survives re-installs and
+uninstalls.
+
+### Build the desktop bundle + installer
+
+Requires a machine with Python 3.12 and internet on first run (PyInstaller + pywebview + Inno Setup
+are fetched automatically; the rest can be reused across rebuilds):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\packaging\desktop\build-desktop.ps1
+```
+
+This produces:
+
+- `packaging/desktop/dist-desktop/IndustrialAcademy/` — the standalone app folder (run
+  `IndustrialAcademy.exe` directly)
+- `packaging/desktop/dist-desktop/IndustrialAcademy-Setup-1.0.0.exe` (~23 MB, per-user installer
+  → Start Menu + Desktop shortcuts, uninstaller included, no admin required)
+
+Options: `-SkipVenv` (reuse the `.build-venv`), `-SkipInstaller` (bundle only). `ISCC_PATH` can
+point at an existing Inno Setup 6 compiler instead of the portable copy the script installs.
+
+Headless verification (used by the build pipeline) runs the packaged app against a temp data dir:
+
+```powershell
+$env:INDUSTRIAL_ACADEMY_DATA = "$env:TEMP\ia-test"; $env:INDUSTRIAL_ACADEMY_SMOKE = "1"
+$env:INDUSTRIAL_ACADEMY_SMOKE_FILE = "$env:TEMP\ia-test\smoke.json"
+packaging\desktop\dist-desktop\IndustrialAcademy\IndustrialAcademy.exe
+Get-Content "$env:TEMP\ia-test\smoke.json"
+```
+
+A launch log is appended to `%TEMP%\IndustrialAcademy-launch.log` on every start; failures there
+report anything that went wrong before the window opened.
 
 ---
 

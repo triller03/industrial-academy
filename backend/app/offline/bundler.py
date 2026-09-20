@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -23,7 +24,10 @@ from app.models import FaultScenario, OfflineContent, Project, ProjectSection
 
 SCHEMA_VERSION = 1
 
-PACKAGE_DIR = Path(__file__).resolve().parent.parent.parent / "offline_packages"
+PACKAGE_DIR = Path(
+    os.environ.get("OFFLINE_PACKAGES_DIR")
+    or (Path(__file__).resolve().parent.parent.parent / "offline_packages")
+)
 
 
 def _now_iso() -> str:

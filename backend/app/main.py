@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -32,7 +33,11 @@ from app.seeder import seed_if_empty
 settings = get_settings()
 
 ROOT = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = ROOT.parent / "frontend"
+# PyInstaller onedir bundles ship the static frontend under _internal/frontend:
+# honour sys._MEIPASS when present, otherwise fall back to the repo layout.
+FRONTEND_DIR = Path(getattr(sys, "_MEIPASS", ROOT.parent)) / "frontend"
+if not FRONTEND_DIR.exists():
+    FRONTEND_DIR = ROOT.parent / "frontend"
 
 
 def _guard_production_settings() -> None:

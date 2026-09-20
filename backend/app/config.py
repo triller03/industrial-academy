@@ -79,6 +79,15 @@ class Settings(BaseSettings):
     opcua_url: str = "opc.tcp://127.0.0.1:4840"
     opcua_nodes: str = ""
 
+    # Desktop orchestration (blueprint: orchestrate installed TIA Portal /
+    # WinCC Unified / Factory I/O instead of replacing them). mode:
+    #   auto      -> live when an installed app is detected, else simulated
+    #   simulate  -> always simulated (safe, no app launch)
+    #   live      -> require the matching app to be installed, else degrade
+    orchestrator_enabled: bool = True
+    orchestrator_mode: str = "auto"
+    orchestrator_app_paths: str = ""  # JSON map {"tia": "C:\\...", "wincc": "...", "factoryio": "..."} to bypass detection
+
 
 @lru_cache
 def get_settings() -> Settings:

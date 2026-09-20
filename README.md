@@ -88,6 +88,7 @@ industrial-academy/
 │   │   ├── mentor/       # Socratic mentor engine (safety / guided / socratic)
 │   │   ├── models/       # SQLAlchemy tables
 │   │   ├── offline/      # content-addressed bundle builder
+│   │   ├── orchestrator/ # Engineering Desk: project pipeline state machine, desktop tool registry + launcher
 │   │   ├── schemas/      # Pydantic request/response models
 │   │   ├── schematics.py # FRS/P&ID structured viewer parser
 │   │   ├── sync/         # offline sync manager + device binding
@@ -98,7 +99,7 @@ industrial-academy/
 │   │   ├── init_db.py    # first-run init: schema, seed, curriculum, offline bundles
 │   │   ├── seeder.py     # seed data: water treatment plant, 17 sections, 8 faults
 │   │   └── main.py       # FastAPI app, routers, static frontend mount
-│   ├── tests/            # 13 integration + static suites (see Testing)
+│   ├── tests/            # 15 integration + static suites (see Testing)
 │   ├── requirements.txt
 │   ├── requirements-integrations.txt   # optional hardware-link dependencies
 │   └── run.py
@@ -192,6 +193,9 @@ the container build):
 | `SEED_ON_STARTUP` | `true` | Seed demo data if the database is empty |
 | `INTEGRATIONS_ENABLED` / `MODBUS_ENABLED` / `SIMULATED_PLANT` | `true` | Integration layer on/off |
 | `S7_ENABLED` / `OPCUA_ENABLED` | `false` | S7 / WinCC links (see Integrations) |
+| `ORCHESTRATOR_ENABLED` | `true` | Engineering Desk on/off |
+| `ORCHESTRATOR_MODE` | `auto` | `auto` (live when a tool is installed) / `simulate` / `live` |
+| `ORCHESTRATOR_APP_PATHS` | `` | JSON override: `{"tia": "…", "wincc": "…", "factoryio": "…"}` to bypass auto-detection |
 
 ---
 
@@ -335,6 +339,7 @@ All endpoints are prefixed with `/api`.
 | Billing | `GET /billing/plans` · `GET /billing/status` · `GET /billing/licenses` · `POST /billing/checkout` · `POST /billing/activate` · `POST /billing/webhook` |
 | Licensing | `GET /licensing/status` · `POST /licensing/register-hwid` · `POST /licensing/verify` |
 | Integrations | `GET /integrations` · `POST /integrations/start\|stop\|snapshot` · **TIA**: `POST /integrations/tia/probe` · `POST /integrations/tia/validate-scl` · `POST /integrations/tia/import-tags` · `GET /integrations/tia/template.csv` |
+| Orchestrator | `GET /orchestrator/status` · `GET /orchestrator/projects/{id}/workflow` · `POST /orchestrator/projects/{id}/advance` · `POST /orchestrator/projects/{id}/regress` · `POST /orchestrator/tools/{tia\|wincc\|factoryio}/launch` (admin) |
 | Activity | `GET /activity` (admin sees all users) |
 | Stats | `GET /stats/learner` (dashboard rollups, streaks, 14-day activity) · `GET /stats/admin` (admin platform analytics) |
 | Portfolio | `GET /portfolio/{entry_ref}` (public HTML share page) |
@@ -460,6 +465,8 @@ With the server running (`python run.py`), from `backend/`:
 .\.venv\Scripts\python.exe tests\billing_test.py      # 24 plans/checkout/webhook/license checks
 .\.venv\Scripts\python.exe tests\licensing_test.py    # 18 HWID + offline-token checks
 .\.venv\Scripts\python.exe tests\blueprint_test.py     # 29 tracks/mining/schematic/TIA/portfolio checks
+.\.venv\Scripts\python.exe tests\ai_test.py            # 15 LLM-gateway fallback/contract checks
+.\.venv\Scripts\python.exe tests\orchestrator_test.py  # 18 Engineering Desk pipeline + toolchain checks
 ```
 
 Or run all suites at once (checks the server is up first):

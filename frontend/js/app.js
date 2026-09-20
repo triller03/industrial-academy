@@ -262,7 +262,7 @@ function showTab(tab) {
   $all(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + tab).classList.remove("hidden");
   $all(".nav-item").forEach((n) => n.classList.toggle("active", n.dataset.tab === tab));
-  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext, admin: loadAdmin, account: loadAccount };
+  const loaders = { dashboard: loadDashboard, credentials: loadCredentials, devices: loadDevices, faultlab: openFaultLab, mentor: initMentorContext, admin: loadAdmin, account: loadAccount, orchestrator: loadOrchestrator };
   if (loaders[tab]) loaders[tab]();
 }
 
@@ -1132,6 +1132,116 @@ async function runIntegrationAction(label, fn) {
   loadIntegrations();
 }
 
+// ---------- Engineering Desk / orchestrator ----------
+async function loadOrchestrator() {
+  const modeEl = $("#orch-mode");
+  const toolsEl = $("#orch-tools");
+  if (!modeEl || !toolsEl) return;
+  let st;
+  try {
+    st = await api("/orchestrator/status");
+  } catch (err) {
+    toolsEl.innerHTML = `<div class="panel-item"><div class="title warn">Could not load orchestration data</div><div class="sub">${esc(err.message)}</div></div>`;
+    if (modeEl) modeEl.textContent = "";
+    return;
+  }
+  if (!st.enabled) {
+    toolsEl.innerHTML = `<div class="panel-item"><div class="sub">${esc(st.detail || "Orchestrator disabled")}</div></div>`;
+    if (modeEl) modeEl.textContent = "disabled";
+    return;
+  }
+  if (modeEl) modeEl.textContent = st.mode === "live" ? "● live toolchain" : "● simulated toolchain";
+
+  const toolStateCls = (s) => (s === "installed" ? "ok" : (s === "unavailable" ? "bad" : "warn"));
+  toolsEl.innerHTML = Object.values(st.tools || {}).map((t) =>
+    `<div class="panel-item"><div class="title">${esc(t.label)} <span class="${toolStateCls(t.state)}">${esc(t.state)}</span></div>` +
+    `<div class="sub">${esc(t.detail || "")}</div>` +
+    (t.path ? `<div class="sub">${esc(t.path)}</div>` : "") +
+    `</div>`).join("") || `<div class="panel-item"><div class="sub">No tools detected on this host.</div></div>`;
+
+  const sel = $("#orch-project");
+  if (!sel) return;
+  const prev = sel.value;
+  const options = (state.projects || []).map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join("");
+  sel.innerHTML = options || `<option value="">No projects yet</option>`;
+  if (prev && [...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  if (state.projects && state.projects.length) {
+    await loadOrchestrationPipeline(sel.value || state.projects[0].id);
+  }
+}
+
+async function loadOrchestrationPipeline(projectId) {
+  const pipe = $("#orch-pipeline");
+  const out = $("#orch-stage-out");
+  if (!pipe) return;
+  pipe.innerHTML = "<p class='muted'>Loading project workflow…</p>";
+  let data;
+  try {
+    data = await api(`/orchestrator/projects/${projectId}/workflow`);
+  } catch (err) {
+    pipe.innerHTML = `<div class="panel-item"><div class="title warn">Failed</div><div class="sub">${esc(err.message)}</div></div>`;
+    if (out) out.textContent = "";
+    return;
+  }
+  const steps = data.pipeline || [];
+  const current = data.stage_index;
+  pipe.innerHTML = steps.map((s, i) => {
+    const stateCls = i < current ? "done" : (i === current ? "active" : "todo");
+    return `<div class="orch-step ${stateCls}"><div class="orch-step-idx">${i + 1}</div>` +
+      `<div class="orch-step-body"><div class="title">${esc(s.label)}</div>` +
+      `<div class="sub">${esc(s.deliverable || "")}</div>` +
+      (s.tool ? `<div class="sub">Tool: ${esc(s.tool)}</div>` : "") +
+      `</div></div>`;
+  }).join("");
+  if (out) {
+    out.textContent = data.completed
+      ? `Project complete at stage ${data.stage_index + 1} of ${steps.length} (${data.stage_key}).`
+      : `Stage ${data.stage_index + 1} of ${steps.length}: ${data.stage.label}.`;
+  }
+}
+
+async function orchAdvance() {
+  const sel = $("#orch-project");
+  const out = $("#orch-stage-out");
+  const id = sel && sel.value;
+  if (!id) { if (out) out.textContent = "Select a project first."; return; }
+  try {
+    await api(`/orchestrator/projects/${id}/advance`, { method: "POST", body: { step: 1 } });
+    await loadOrchestrationPipeline(id);
+  } catch (err) { if (out) out.textContent = "Failed: " + err.message; }
+}
+
+async function orchRegress() {
+  const sel = $("#orch-project");
+  const out = $("#orch-stage-out");
+  const id = sel && sel.value;
+  if (!id) { if (out) out.textContent = "Select a project first."; return; }
+  try {
+    await api(`/orchestrator/projects/${id}/regress`, { method: "POST" });
+    await loadOrchestrationPipeline(id);
+  } catch (err) { if (out) out.textContent = "Failed: " + err.message; }
+}
+
+async function orchLaunch(tool) {
+  const msg = $("#orch-msg");
+  if (msg) msg.textContent = toolbarLabel(tool) + "…";
+  try {
+    const r = await api(`/orchestrator/tools/${tool}/launch`, {
+      method: "POST",
+      body: { actions: [`open:${tool}`] },
+    });
+    if (msg) msg.className = "muted " + (r.ok ? "ok" : "warn");
+    if (msg) msg.textContent = r.detail || (r.ok ? "Launched." : "Failed.");
+  } catch (err) {
+    if (msg) msg.className = "muted warn";
+    if (msg) msg.textContent = "Failed: " + err.message;
+  }
+}
+
+function toolbarLabel(key) {
+  return { tia: "TIA Portal", wincc: "WinCC", factoryio: "Factory I/O" }[key] || key;
+}
+
 // ---------- TIA Openness bridge (admin panel) ----------
 async function tiaProbe() {
   const host = $("#tia-status");
@@ -1304,7 +1414,13 @@ $("#int-opcua-probe").onclick = () => runIntegrationAction("Testing OPC UA", () 
 $("#int-snapshot").onclick = () => runIntegrationAction("Recording snapshot", () => api("/integrations/snapshot", { method: "POST" }));
 $("#cur-install").onclick = syncCurriculum;
 $("#pd-schematic-btn").onclick = openSchematic;
+$("#orch-advance").onclick = orchAdvance;
+$("#orch-regress").onclick = orchRegress;
+$("#orch-launch-tia").onclick = () => orchLaunch("tia");
+$("#orch-launch-wincc").onclick = () => orchLaunch("wincc");
+$("#orch-launch-factoryio").onclick = () => orchLaunch("factoryio");
 $("#activate-btn").onclick = activateKey;
+$("#orch-project").onchange = (e) => loadOrchestrationPipeline(e.target.value);
 $("#hwid-bind").onclick = bindHwid;
 $("#tia-probe").onclick = tiaProbe;
 $("#tia-template").onclick = tiaDownloadTemplate;

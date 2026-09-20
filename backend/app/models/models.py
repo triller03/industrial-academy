@@ -111,6 +111,7 @@ class Project(Base):
     difficulty: Mapped[str] = mapped_column(String(32), default="intermediate")
     hours: Mapped[int] = mapped_column(Integer, default=30)
     status: Mapped[str] = mapped_column(String(32), default="published")
+    orchestration_stage: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     sections: Mapped[list["ProjectSection"]] = relationship(

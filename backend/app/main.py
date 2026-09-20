@@ -21,6 +21,7 @@ from app.api import (
     licensing_router,
     mentor_router,
     offline_router,
+    orchestrator_router,
     progress_router,
     projects_router,
     stats_router,
@@ -167,6 +168,7 @@ activity_router,
         stats_router,
         licensing_router,
         billing_router,
+        orchestrator_router,
     ):
         app.include_router(router, prefix=settings.api_prefix)
 

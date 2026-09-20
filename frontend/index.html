@@ -60,6 +60,7 @@
         <button class="nav-item active" data-tab="projects">Projects</button>
         <button class="nav-item" data-tab="mentor">AI Mentor</button>
         <button class="nav-item" data-tab="faultlab">Fault Lab</button>
+        <button class="nav-item" data-tab="orchestrator">Engineering Desk</button>
         <button class="nav-item" data-tab="credentials">Credentials</button>
         <button class="nav-item" data-tab="devices">Devices</button>
         <button class="nav-item" data-tab="account">Account &amp; Plan</button>
@@ -150,6 +151,28 @@
             <button id="fault-help" class="btn btn-ghost">Ask the mentor</button>
           </div>
           <div id="fault-result" class="fault-result"></div>
+        </div>
+      </section>
+
+      <section id="view-orchestrator" class="view">
+        <h1>Engineering Desk <span id="orch-mode" class="mentor-ai-chip"></span></h1>
+        <p class="muted">Drive a project through its engineering lifecycle — scope, PLC, HMI, simulation and handover — against the desktop tools installed on this machine.</p>
+        <h2>Toolchain</h2>
+        <div id="orch-tools" class="panel-list"></div>
+        <div class="row" style="flex-wrap:wrap; gap:8px;">
+          <button id="orch-launch-tia" class="btn btn-ghost">Launch / TIA Portal</button>
+          <button id="orch-launch-wincc" class="btn btn-ghost">Launch / WinCC</button>
+          <button id="orch-launch-factoryio" class="btn btn-ghost">Launch / Factory I/O</button>
+          <span id="orch-msg" class="muted"></span>
+        </div>
+        <h2>Project lifecycle</h2>
+        <label>Select project</label>
+        <select id="orch-project"></select>
+        <div id="orch-pipeline" class="orch-pipeline"></div>
+        <div class="row">
+          <button id="orch-regress" class="btn btn-ghost">← Previous stage</button>
+          <button id="orch-advance" class="btn btn-primary">Next stage →</button>
+          <span id="orch-stage-out" class="muted"></span>
         </div>
       </section>
 

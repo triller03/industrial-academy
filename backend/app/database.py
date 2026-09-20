@@ -41,6 +41,11 @@ def ensure_schema(engine) -> None:
             conn.exec_driver_sql(
                 "ALTER TABLE portfolio_entries ADD COLUMN published_at DATETIME NULL"
             )
+        project_cols = {c[1] for c in conn.exec_driver_sql("PRAGMA table_info(projects)")}
+        if "orchestration_stage" not in project_cols:
+            conn.exec_driver_sql(
+                "ALTER TABLE projects ADD COLUMN orchestration_stage INTEGER NOT NULL DEFAULT 0"
+            )
 
 
 def get_db():

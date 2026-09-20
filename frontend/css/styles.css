@@ -225,6 +225,26 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .btn:disabled { opacity: .6; cursor: default; }
 
+/* Engineering Desk / orchestration */
+.orch-pipeline { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+.orch-step {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.orch-step-idx {
+  width: 26px; height: 26px; flex: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  background: var(--bg-2); color: var(--muted); border: 1px solid var(--border);
+}
+.orch-step.done .orch-step-idx { background: var(--good); color: #fff; border-color: var(--good); }
+.orch-step.active { border-color: var(--accent); }
+.orch-step.active .orch-step-idx { background: var(--accent); color: #fff; border-color: var(--accent); }
+.orch-step.todo { opacity: .6; }
+.orch-step-body .title { font-weight: 600; font-size: 14px; }
+.orch-step-body .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
 /* Admin */
 .admin-form { display: grid; gap: 4px; max-width: 480px; margin-bottom: 24px; }
 .admin-form select, .admin-form textarea { width: 100%; }

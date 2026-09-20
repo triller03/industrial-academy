@@ -523,7 +523,23 @@ async function loadDashboard() {
 }
 
 // ---------- mentor ----------
+function loadMentorStatus() {
+  fetch(API + "/mentor/status")
+    .then((r) => r.json())
+    .then((s) => {
+      const chip = $("#mentor-ai-status");
+      if (!s.enabled) {
+        chip.textContent = "deterministic engine";
+      } else if (s.provider === "ollama") {
+        chip.textContent = "ollama · " + (s.model || "");
+      } else {
+        chip.textContent = (s.provider || "") + " · " + (s.model || "");
+      }
+    })
+    .catch(() => {});
+}
 function initMentorContext() {
+  loadMentorStatus();
   const sel = $("#chat-context");
   sel.innerHTML = `<option value="">General / project brief</option>`;
   if (state.currentProject) {

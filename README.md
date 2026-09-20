@@ -28,6 +28,10 @@ faults). See [`CURRICULUM.md`](CURRICULUM.md) for the full tracks, and Admin →
     assistance level.
   - `safety` — hard override. Any safety keyword produces a direct, unambiguous procedure with no
     guessing. Assistance levels 1–5 control how much the mentor reveals.
+- **Real LLM reasoning (optional)** — set `AI_PROVIDER` (+ key) and the mentor answers through a
+  real model (OpenAI, OpenRouter, Anthropic Claude, Google Gemini, or a local Ollama). Without a
+  provider it falls back to the bundled deterministic engine, so it still works fully offline. The
+  safety override is *never* delegated to the model. See [AI Mentor backend §](##-ai-mentor-backend).
 - **17-section project lifecycle** — from project brief and process description through P&ID, I/O and
   tag lists, control philosophy, PLC/HMI/SCADA, alarms, interlocks, networking, testing, fault
   injection, troubleshooting, commissioning, and final documentation.
@@ -182,9 +186,48 @@ the container build):
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_MAP` | `` | Stripe billing (empty = local test gateway) |
 | `PAYNOW_INTEGRATION_ID` / `PAYNOW_API_KEY` / `PAYNOW_RESULT_URL` | `` | Paynow billing (Zimbabwe) |
 | `TIA_OPENNESS_ENABLED` | `false` | Hardware TIA Openness host on / off (graceful degradation) |
+| `AI_PROVIDER` | `` | Mentor LLM backend: `openai` / `openrouter` / `anthropic` / `gemini` / `ollama` (blank = deterministic engine) |
+| `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | `` | Provider credentials; `AI_BASE_URL` points any OpenAI-compatible endpoint (Ollama, vLLM, Groq, DeepSeek…) |
+| `AI_MAX_TOKENS` / `AI_TIMEOUT_SECONDS` / `AI_TEMPERATURE` | `900` / `60` / `0.7` | LLM generation tuning |
 | `SEED_ON_STARTUP` | `true` | Seed demo data if the database is empty |
 | `INTEGRATIONS_ENABLED` / `MODBUS_ENABLED` / `SIMULATED_PLANT` | `true` | Integration layer on/off |
 | `S7_ENABLED` / `OPCUA_ENABLED` | `false` | S7 / WinCC links (see Integrations) |
+
+---
+
+## AI Mentor backend
+
+The mentor is a **hybrid**: a small deterministic safety/behaviour engine in front of an optional
+LLM.
+
+```text
+learner message
+      │
+      ▼
+┌ safety keyword / section? ───────── yes ──▶ deterministic safety steps (never the model)
+      │ no
+      ▼
+mode & level decided deterministically (socratic / guided)
+      │
+      ├─ AI_PROVIDER set ──▶ real LLM writes the reply (SYSTEM_PROMPT + recent chat history)
+      └─ no provider         └─▶ deterministic Socratic engine (works fully offline)
+      │
+      └─ LLM calls the function only when the prompt can't involve a live hazard.
+```
+
+Enabled by env (see Configuration); provider choices:
+
+- `openai` → `https://api.openai.com/v1` (default model `gpt-4o-mini`)
+- `openrouter` → `https://openrouter.ai/api/v1` — runtime model switching, one key
+- `anthropic` → `https://api.anthropic.com/v1` (`claude-3-5-sonnet-latest` default)
+- `gemini` → `https://generativelanguage.googleapis.com` (`gemini-2.0-flash` default)
+- `ollama` → `http://127.0.0.1:11434/v1` — local, private, works inside the desktop app offline
+- any OpenAI-compatible base via `AI_PROVIDER=openai` + `AI_BASE_URL` (Ollama, vLLM, Groq, DeepSeek…)
+
+The backend exposes `GET /mentor/status` (provider + model in effect); the frontend shows a small
+chip next to the AI Mentor title. If the provider is unreachable, the engine logs and falls back to
+the deterministic response, so chat never errors out. `POST /mentor/solution` stays gated by plan as
+before.
 
 ---
 
@@ -283,7 +326,7 @@ All endpoints are prefixed with `/api`.
 | Projects | `GET /projects` · `GET /projects/{id}` · `GET /projects/{id}/sections/{key}` · `GET /projects/{id}/progress` · `GET /projects/{id}/schematic` (Student Pro+) · `POST /projects/generate` (Student Pro+) |
 | Curriculum | `GET /curriculum` (foundations only) · `GET /curriculum/tracks` · `GET /curriculum/mining` · `GET /curriculum/projects/{slug}` · `POST /curriculum/install` (admin) |
 | Faults | `GET /projects/{id}/faults` · `GET /projects/{id}/faults/{fault_id}` · `POST /fault/diagnose` |
-| Mentor | `POST /mentor/chat` · `POST /mentor/solution` |
+| Mentor | `GET /mentor/status` · `POST /mentor/chat` · `POST /mentor/solution` |
 | Progress | `GET /progress` · `POST /progress` |
 | Devices | `POST /devices/authorize` · `GET /devices` · `POST /devices/revoke` · `POST /devices/{id}/touch` |
 | Sync | `POST /sync` |

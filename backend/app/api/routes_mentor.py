@@ -11,6 +11,12 @@ from app.schemas import MentorChatIn, MentorChatOut
 router = APIRouter(prefix="/mentor", tags=["mentor"])
 
 
+@router.get("/status")
+def mentor_status():
+    """Which mentor backend is active (LLM provider vs deterministic engine)."""
+    return mentor_engine.status()
+
+
 def _topic_for(section_key: str | None, fault: FaultScenario | None) -> str | None:
     if fault:
         return fault.title
@@ -34,9 +40,14 @@ def chat(
         db.query(AIConversation)
         .filter(AIConversation.user_id == current.id)
         .order_by(AIConversation.id.desc())
-        .limit(4)
+        .limit(8)
         .all()
     )
+    history = [
+        {"role": ("user" if msg.role == "user" else "assistant"), "content": msg.content}
+        for msg in reversed(recent)
+        if msg.role in ("user", "mentor")
+    ]
     for msg in recent:
         if msg.role == "user" and msg.mode == "guided":
             frustration_streak += 1
@@ -56,7 +67,7 @@ def chat(
         requested_level=requested_level,
         frustration_streak=frustration_streak,
     )
-    response = mentor_engine.respond(request)
+    response = mentor_engine.respond(request, history=history)
 
     db.add(AIConversation(user_id=current.id, project_id=body.project_id, section_key=body.section_key,
                           role="user", content=body.message, mode=response.mode,

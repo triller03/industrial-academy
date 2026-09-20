@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import re
 
+from app.config import get_settings
+from app.mentor.llm import AIMentorClient, LLMError
+
 SAFETY_KEYWORDS = [
     "emergency stop",
     "e-stop",
@@ -345,4 +348,118 @@ class AIMentorEngine:
         )
 
 
-mentor_engine = AIMentorEngine()
+SYSTEM_PROMPT = """You are the AI mentor inside ASAPA, an industrial automation training platform (PLC, sensors, PID, P&ID, HMI/SCADA, safety, commissioning, fault-finding, mining & minerals).
+
+You are a senior automation engineer teaching a working technician. Principles:
+- Socratic by default: when asked for a diagnosis, first ask ONE focused question that moves the learner forward, and never hand over the root cause in the same turn.
+- Guided mode (learner is stuck, frustrated, or explicitly asks for help): give concrete, ordered steps a technician would actually run — observe the signal, trace input -> logic -> output -> feedback, check permissives/interlocks before doubting the processor.
+- Full-solution mode: only when the learner explicitly requested the full walkthrough, give the complete reasoning, root causes and a step-by-step resolution. Otherwise stay Socratic.
+- Depths (L1 hint, L2 walkthrough, L3 walkthrough + reasoning, L4 full reasoning, L5 expert perspective incl. maintenance-log and HART-level diagnostics).
+- Reason carefully: name the physics/instrumentation mechanism (a 4.0 mA reading is an open circuit, a real 0% reads 4.0-4.1 mA with noise), distinguish symptom from cause, and be explicit about what you would verify before concluding.
+- Keep replies concise and practical (typically 60-220 words), plain text, no markdown tables.
+- If the learner describes a live electrical hazard (energized panel, arc flash, LOTO, working live): reply with direct, unambiguous, step-by-step safety instruction. Never a Socratic question, never a guess, and never negotiate on safety.
+"""
+
+
+class HybridMentorEngine:
+    """Safety gate + real-LLM reasoning, with the rule engine as offline fallback.
+
+    Order of operations:
+        1. Safety keywords/sections  -> deterministic safety steps (LLM never called).
+        2. Mode & level decided deterministically (unchanged gating semantics).
+        3. LLM client enabled       -> LLM writes the reply from SYSTEM_PROMPT + history.
+        4. LLM missing/failed       -> rule-based engine (same behaviour as before).
+    """
+
+    def __init__(self, llm: AIMentorClient | None = None):
+        self.llm = llm or AIMentorClient.from_settings(get_settings())
+        self.fallback = AIMentorEngine()
+
+    @property
+    def provider(self) -> str:
+        return self.llm.provider
+
+    @property
+    def model(self) -> str:
+        return self.llm.model
+
+    def status(self) -> dict:
+        return {
+            "enabled": self.llm.enabled,
+            "provider": self.llm.provider or "rule-based",
+            "model": self.llm.model or "AIMentorEngine (deterministic)",
+        }
+
+    def respond(self, request: MentorRequest, history: list[dict] | None = None) -> MentorResponse:
+        safety_triggered, safety_kw = _contains_any(request.message, SAFETY_KEYWORDS)
+        if not safety_triggered:
+            safety_triggered = bool(_detect_safety(request.section_key, request.topic))
+        if safety_triggered:
+            # Never let a model improvise around a live hazard.
+            return self.fallback._safety_response(request, safety_kw)
+
+        frustration_detected, _ = _contains_any(request.message, FRUSTRATION_KEYWORDS)
+        asking_answer, _ = _contains_any(request.message, ASK_ANSWER_KEYWORDS)
+        if asking_answer or frustration_detected or request.frustration_streak >= 2:
+            mode = "guided"
+        else:
+            mode = "socratic"
+        level = self.fallback._resolve_level(request, mode)
+
+        if self.llm.enabled:
+            reply = self._llm_reply(mode, level, request, history)
+            if reply:
+                return MentorResponse(
+                    reply=reply,
+                    mode=mode,
+                    level=level,
+                    safety_triggered=False,
+                    frustration_detected=frustration_detected,
+                )
+        return self.fallback.respond(request)
+
+    def solution(self, message: str, topic: str | None, requested_level: int) -> MentorResponse:
+        safety_triggered, safety_kw = _contains_any(message, SAFETY_KEYWORDS)
+        if safety_triggered:
+            return self.fallback._safety_response(MentorRequest(message, topic=topic), safety_kw)
+
+        level = max(1, min(5, requested_level))
+        req = MentorRequest(message, topic=topic, requested_level=level)
+        if self.llm.enabled:
+            reply = self._llm_reply("full-solution", level, req, None, full_solution=True)
+            if reply:
+                return MentorResponse(
+                    reply=reply,
+                    mode="guided",
+                    level=level,
+                    safety_triggered=False,
+                    frustration_detected=False,
+                )
+        return self.fallback.solution(message, topic, requested_level)
+
+    def _llm_reply(
+        self, mode: str, level: int, request: MentorRequest, history: list[dict] | None, full_solution: bool = False
+    ) -> str | None:
+        if mode == "socratic":
+            mode_line = "Socratic: ask ONE guiding question; do not reveal the root cause yet."
+        elif full_solution:
+            mode_line = "Full solution: the learner explicitly asked for it — give complete reasoning and step-by-step resolution."
+        else:
+            mode_line = "Guided: learner is stuck or asked for help — give ordered, concrete steps."
+
+        segment = f"\nCurrent topic: {request.topic or 'general'}. Requested depth: L{level}.\n{mode_line}"
+        user_text = request.message
+        if request.topic:
+            user_text = f"[Working on: {request.topic}]\n{user_text}"
+        try:
+            return self.llm.chat(
+                SYSTEM_PROMPT + segment,
+                (history or [])[-8:] + [{"role": "user", "content": user_text}],
+            )
+        except LLMError as exc:
+            print(f"[ai-mentor] llm unavailable, falling back to rule engine: {exc}")
+            return None
+
+
+def build_mentor_engine() -> HybridMentorEngine:
+    return HybridMentorEngine()

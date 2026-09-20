@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     tia_openness_host: str = "127.0.0.1"
     tia_openness_port: int = 8600
 
+    # AI Mentor LLM backend. Leave ai_provider empty to use the deterministic
+    # Socratic engine (works fully offline; never needs keys).
+    ai_provider: str = ""  # "", "openai", "openrouter", "anthropic", "gemini", "ollama"
+    ai_api_key: str = ""
+    ai_base_url: str = ""  # OpenAI-compatible custom endpoint (Ollama/vLLM/Groq/DeepSeek…)
+    ai_model: str = ""  # provider default used when blank
+    ai_max_tokens: int = 900
+    ai_timeout_seconds: int = 60
+    ai_temperature: float = 0.7
+
     seed_on_startup: bool = True
 
     # Integration layer (FACTORY I/O / TIA Portal / WinCC)

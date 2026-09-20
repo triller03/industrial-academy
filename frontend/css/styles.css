@@ -169,6 +169,7 @@ label { display: block; color: var(--muted); font-size: 13px; margin-top: 12px; 
 .panel-item .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
 
 /* Mentor chat */
+.mentor-ai-chip { font-size: 11px; font-weight: 600; color: var(--accent, #4338ca); background: rgba(67,56,202,0.08); border: 1px solid rgba(67,56,202,0.25); padding: 3px 10px; border-radius: 999px; vertical-align: middle; }
 .mentor-layout { display: grid; grid-template-columns: 1fr 300px; gap: 18px; margin-top: 14px; }
 .chat-window {
   height: 520px; overflow-y: auto; background: var(--panel); border: 1px solid var(--border);

@@ -287,6 +287,25 @@ port 502. The app icon and installer icon use the ASAPA mark (assets generated b
 bundles) is stored in `%LOCALAPPDATA%\IndustrialAcademy`, outside the install directory, and
 survives re-installs and uninstalls.
 
+### Enable the live AI mentor (internet)
+
+Out of the box the desktop app uses the built-in Socratic mentor engine, which
+works fully offline. To switch it to a live LLM whenever there is internet
+access, edit `%LOCALAPPDATA%\IndustrialAcademy\config.env` (a template is
+written there on first launch; see `packaging/desktop/config.env.example`) and
+add:
+
+```
+AI_PROVIDER=openrouter
+AI_API_KEY=sk-or-...
+```
+
+Other providers are supported (`openai`, `anthropic`, `gemini`, local
+`ollama`, or any OpenAI-compatible endpoint via `AI_BASE_URL`). The app still
+falls back to the deterministic engine on offline use or provider errors, and
+safety-critical questions never reach the model. Real environment variables on
+the machine take precedence over the file.
+
 ### Build the desktop bundle + installer
 
 Requires a machine with Python 3.12 and internet on first run (PyInstaller + pywebview + Inno Setup

@@ -10,10 +10,23 @@ survives app re-installs.
 
 Environment overrides (useful for testing / fan-out):
     INDUSTRIAL_ACADEMY_DATA   base data directory (default %LOCALAPPDATA%\\IndustrialAcademy)
+    INDUSTRIAL_ACADEMY_CONFIG  config file to load (default <data>\\config.env)
     INDUSTRIAL_ACADEMY_PORT   fixed port (default: a random free loopback port)
     INDUSTRIAL_ACADEMY_SMOKE  "1" = headless self-check, writes INDUSTRIAL_ACADEMY_SMOKE_FILE, exits
     INDUSTRIAL_ACADEMY_SMOKE_FILE  where the smoke result is written (default <data>\\smoke.json)
     INDUSTRIAL_ACADEMY_LOG    where the launch log is appended (default %TEMP%\\IndustrialAcademy-launch.log)
+
+AI mentor over the internet:
+    Create <data>\\config.env (a template is written there on first launch) with, e.g.:
+
+        AI_PROVIDER=openrouter
+        AI_API_KEY=sk-or-...
+
+    The app then uses the live LLM whenever it has internet access and falls
+    back to the built-in offline Socratic engine on errors or offline use.
+    Any provider supported by the backend works (openai, anthropic, gemini,
+    ollama, or any OpenAI-compatible endpoint via AI_BASE_URL). Real
+    environment variables set on the machine take precedence over the file.
 """
 
 from __future__ import annotations
@@ -50,6 +63,48 @@ def info(message: str) -> None:
         pass
 
 
+CONFIG_TEMPLATE = """\
+# ASAPA desktop AI mentor settings.
+# This app keeps working fully offline with the built-in Socratic engine.
+# To enable the live LLM mentor over the internet, fill in a provider + key:
+#   AI_PROVIDER=openrouter            # openai | openrouter | anthropic | gemini | ollama
+#   AI_API_KEY=sk-or-...              # your key for the chosen provider
+#   AI_BASE_URL=                      # optional custom OpenAI-compatible endpoint
+#   AI_MODEL=                         # optional model override (provider default when blank)
+# Any line whose KEY can be set as an environment variable is honoured;
+# environment variables set on the machine take precedence over this file.
+"""
+
+
+def _load_config_env() -> None:
+    """Load a per-user <data>/config.env into the process environment (defaults only).
+
+    Real environment variables always win; the file just fills the gaps so an
+    installed app can pick up AI_* keys without touching the machine's env.
+    """
+    path = os.environ.get("INDUSTRIAL_ACADEMY_CONFIG") or os.path.join(_data_dir(), "config.env")
+    if not os.path.exists(path):
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(CONFIG_TEMPLATE)
+        except Exception as exc:  # noqa: BLE001
+            log(f"could not write config template: {exc}")
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key, value = key.strip(), value.strip().strip("'\"").strip()
+                if key and value:
+                    os.environ.setdefault(key, value)
+        log(f"config.env loaded: {path}")
+    except Exception as exc:  # noqa: BLE001
+        log(f"config.env could not be read: {exc}")
+
+
 def _data_dir() -> str:
     root = os.environ.get("INDUSTRIAL_ACADEMY_DATA")
     if root:
@@ -67,6 +122,7 @@ def configure() -> None:
             setattr(sys, attr, open(os.devnull, "w", encoding="utf-8"))
     data_dir = _data_dir()
     os.makedirs(data_dir, exist_ok=True)
+    _load_config_env()
     os.environ.setdefault("DATABASE_URL", "sqlite:///" + os.path.join(data_dir, "academy.db"))
     os.environ.setdefault("OFFLINE_PACKAGES_DIR", os.path.join(data_dir, "offline_packages"))
     # The desktop bundle ships without the factory/TIA/WinCC integration
